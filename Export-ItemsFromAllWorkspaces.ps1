@@ -3,11 +3,23 @@ if (-not ((Get-PackageProvider).Name -contains "NuGet")) {
   Register-PackageSource -Name "NuGet.org" -Location "https://api.nuget.org/v3/index.json" -ProviderName "NuGet"
 }
 
-# Declare $localModulePath variable
-$localModulePath = (Join-Path -Path $PSScriptRoot -ChildPath 'FabricPS-PBIP.psm1')
+# Declare $moduleUrl variable
+[string]$moduleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'
 
-# Download latest FabricPS-PBIP.psm1 from Analysis-Services repository
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1" -OutFile $localModulePath
+# Declare $getLatestModule variable
+# Set this to $false if you want to use the existing FabricPS-PBIP.psm1 file, or $true to download the latest version
+[bool]$getLatestModule = $true
+
+# Declare $moduleName variable
+[string]$moduleFileName = Split-Path -Leaf $moduleUrl
+
+# Declare $localModulePath variable
+$localModulePath = (Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName)
+
+# Download latest FabricPS-PBIP.psm1 from Analysis-Services repository if it does not exist, or if $getLatestModule is $true
+if (-not (Test-Path -Path $localModulePath) -or ($getLatestModule)) {
+  Invoke-WebRequest -Uri $moduleUrl -OutFile $localModulePath
+}
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file
 Unblock-File -Path $localModulePath
