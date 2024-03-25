@@ -3,8 +3,17 @@ if (-not ((Get-PackageProvider).Name -contains "NuGet")) {
   Register-PackageSource -Name "NuGet.org" -Location "https://api.nuget.org/v3/index.json" -ProviderName "NuGet"
 }
 
+# Declare $LocalModulePath variable
+$LocalModulePath = (Join-Path -Path $PSScriptRoot -ChildPath 'FabricPS-PBIP.psm1')
+
+# Download latest FabricPS-PBIP.psm1 from Analysis-Services repository
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1" -OutFile $LocalModulePath
+
+# Unblock the downloaded FabricPS-PBIP.psm1 file
+Unblock-File -Path $LocalModulePath
+
 # Import the FabricPS-PBIP module
-Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricPS-PBIP.psm1')
+Import-Module $LocalModulePath
 
 # Get names of Workspaces and Reports to ignore from IgnoreList.json file
 [PSCustomObject]$ignoreObjects = Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath "IgnoreList.json") | ConvertFrom-Json
