@@ -26,6 +26,9 @@ Import-Module $LocalModulePath
 [string]$servicePrincipalId = $config.ServicePrincipal.AppId
 [string]$servicePrincipalSecret = $config.ServicePrincipal.AppSecret
 
+# Set $UseServicePrincipal variable to $true if Service Principal credentials are provided in the Config.json file
+[bool]$UseServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret
+
 # Get current date and create a folder hierarchy for the year, month, and day
 [string]$year = Get-Date -Format "yyyy"
 [string]$month = Get-Date -Format "MM"
@@ -39,15 +42,28 @@ if (-not (Test-Path -Path $folderPath)) {
   New-Item -Path $folderPath -ItemType Directory -Force | Out-Null
 }
 
+# Initialize the $loopCount variable
+$loopCount = 0
+
 # Define the function to get the headers for the Fabric REST API
+# If $UseServicePrincipal is $true, use the Service Principal credentials to get the headers
+# Otherwise, use the current user's credentials
 Function Get-FabricHeaders {
-  Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
+  if ($UseServicePrincipal) {
+    if ($loopCount -eq 0) {
+      Logout-AzAccount | Out-Null
+    }
+    Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
+  } else {
+    Set-FabricAuthToken
+  }
   return @{
     Authorization="Bearer $(Get-FabricAuthToken)"
   }
 }
 
 # Get a list of all active Workspaces
+# TODO: Add support for more than 1000 Workspaces
 [string[]]$workspaceIds = (
   Invoke-RestMethod -Uri 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter=(type eq ''Workspace'') and (state eq ''Active'')&$top=1000' -Method GET -Headers (Get-FabricHeaders)
   ).value | Where-Object  {
@@ -60,6 +76,7 @@ $workspaceIds | ForEach-Object {
   Export-FabricItems -WorkspaceId $workspaceId -Path $folderPath -ErrorAction SilentlyContinue
   # TODO: Convert the model.bim file to a .tmdl folder with pbi-tools
   # Invoke-Command -ScriptBlock {pbi-tools convert -source .\model.bim -outPath .\tmdl -modelSerialization tmdl} | Out-Null
+  $loopCount++
   Get-FabricHeaders | Out-Null
 }
 
