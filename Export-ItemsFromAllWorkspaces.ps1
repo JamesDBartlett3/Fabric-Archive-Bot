@@ -62,10 +62,12 @@ Function Get-FabricHeaders {
   }
 }
 
+$headers = Get-FabricHeaders
+
 # Get a list of all active Workspaces
 # TODO: Add support for more than 1000 Workspaces
 [string[]]$workspaceIds = (
-  Invoke-RestMethod -Uri 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter=(type eq ''Workspace'') and (state eq ''Active'')&$top=1000' -Method GET -Headers (Get-FabricHeaders)
+  Invoke-RestMethod -Uri 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter=(type eq ''Workspace'') and (state eq ''Active'')&$top=1000' -Method GET -Headers $headers
   ).value | Where-Object  {
     $_.name -notin $ignoreWorkspaces 
     } | Select-Object -ExpandProperty id
@@ -73,11 +75,13 @@ Function Get-FabricHeaders {
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
   [string]$workspaceId = $_
+  $workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
   Export-FabricItems -WorkspaceId $workspaceId -Path $folderPath -ErrorAction SilentlyContinue
   # TODO: Convert the model.bim file to a .tmdl folder with pbi-tools
   # Invoke-Command -ScriptBlock {pbi-tools convert -source .\model.bim -outPath .\tmdl -modelSerialization tmdl} | Out-Null
+  Rename-Item -Path (Join-Path -Path $folderPath -ChildPath $workspaceId) -NewName $workspaceName -ErrorAction SilentlyContinue
   $loopCount++
-  Get-FabricHeaders | Out-Null
+  $headers = Get-FabricHeaders
 }
 
 # Get list of all subfolders for dates older than 3 years
