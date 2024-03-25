@@ -3,17 +3,17 @@ if (-not ((Get-PackageProvider).Name -contains "NuGet")) {
   Register-PackageSource -Name "NuGet.org" -Location "https://api.nuget.org/v3/index.json" -ProviderName "NuGet"
 }
 
-# Declare $LocalModulePath variable
-$LocalModulePath = (Join-Path -Path $PSScriptRoot -ChildPath 'FabricPS-PBIP.psm1')
+# Declare $localModulePath variable
+$localModulePath = (Join-Path -Path $PSScriptRoot -ChildPath 'FabricPS-PBIP.psm1')
 
 # Download latest FabricPS-PBIP.psm1 from Analysis-Services repository
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1" -OutFile $LocalModulePath
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1" -OutFile $localModulePath
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file
-Unblock-File -Path $LocalModulePath
+Unblock-File -Path $localModulePath
 
 # Import the FabricPS-PBIP module
-Import-Module $LocalModulePath
+Import-Module $localModulePath
 
 # Get names of Workspaces and Reports to ignore from IgnoreList.json file
 [PSCustomObject]$ignoreObjects = Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath "IgnoreList.json") | ConvertFrom-Json
@@ -26,8 +26,8 @@ Import-Module $LocalModulePath
 [string]$servicePrincipalId = $config.ServicePrincipal.AppId
 [string]$servicePrincipalSecret = $config.ServicePrincipal.AppSecret
 
-# Set $UseServicePrincipal variable to $true if Service Principal credentials are provided in the Config.json file
-[bool]$UseServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret
+# Set $useServicePrincipal variable to $true if Service Principal credentials are provided in the Config.json file
+[bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret
 
 # Get current date and create a folder hierarchy for the year, month, and day
 [string]$year = Get-Date -Format "yyyy"
@@ -46,10 +46,10 @@ if (-not (Test-Path -Path $folderPath)) {
 $loopCount = 0
 
 # Define the function to get the headers for the Fabric REST API
-# If $UseServicePrincipal is $true, use the Service Principal credentials to get the headers
+# If $useServicePrincipal is $true, use the Service Principal credentials to get the headers
 # Otherwise, use the current user's credentials
 Function Get-FabricHeaders {
-  if ($UseServicePrincipal) {
+  if ($useServicePrincipal) {
     if ($loopCount -eq 0) {
       Logout-AzAccount | Out-Null
     }
