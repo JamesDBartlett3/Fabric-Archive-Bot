@@ -1,1 +1,4 @@
 Config.json
+.nuget/**
+Workspaces/**
+FabricPS-PBIP.psm1
