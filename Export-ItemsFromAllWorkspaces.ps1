@@ -39,8 +39,6 @@ if (-not (Test-Path -Path $folderPath)) {
   New-Item -Path $folderPath -ItemType Directory -Force | Out-Null
 }
 
-# Logout-AzAccount | Out-Null
-
 # Define the function to get the headers for the Fabric REST API
 Function Get-FabricHeaders {
   Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
@@ -48,8 +46,6 @@ Function Get-FabricHeaders {
     Authorization="Bearer $(Get-FabricAuthToken)"
   }
 }
-
-Write-Host (Get-FabricHeaders)
 
 # Get a list of all active Workspaces
 [string[]]$workspaceIds = (
