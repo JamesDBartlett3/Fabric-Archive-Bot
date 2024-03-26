@@ -1,4 +1,4 @@
-# FabricArchivist
+# Fabric-Archive-Bot
 A fully automated Microsoft Fabric/Power BI tenant backup solution written in PowerShell
 
 ## Acknowledgements
