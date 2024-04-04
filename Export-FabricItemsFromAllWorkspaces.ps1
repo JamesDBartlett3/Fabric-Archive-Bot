@@ -76,13 +76,17 @@ Function Get-FabricHeaders {
 
 $headers = Get-FabricHeaders
 
-# Get a list of all active Workspaces
-# TODO: Add support for more than 1000 Workspaces
-[string[]]$workspaceIds = (
-  Invoke-RestMethod -Uri 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter=(type eq ''Workspace'') and (state eq ''Active'')&$top=1000' -Method GET -Headers $headers
-  ).value | Where-Object  {
-    $_.name -notin $ignoreWorkspaces 
-    } | Select-Object -ExpandProperty id
+# Get a list of all active Workspaces in batches of 50 until all workspaces have been fetched
+[string[]]$workspaceIds = @()
+[string]$filter = "(type eq 'Workspace') and (state eq 'Active')"
+[int]$skip = 0
+[int]$batchSize = 5000
+do {
+  [string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $filter, $batchSize, $skip
+  $batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
+  $workspaceIds += $batch.value | Where-Object { $_.name -notin $ignoreWorkspaces } | Select-Object -ExpandProperty id
+  $skip += $batchSize
+} while ($batch.value.Count -eq $batchSize)
 
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
