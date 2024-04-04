@@ -55,7 +55,7 @@ if (-not (Test-Path -Path $folderPath)) {
 }
 
 # Initialize the $loopCount variable
-$loopCount = 0
+[int]$loopCount = 0
 
 # Define the function to get the headers for the Fabric REST API
 # If $useServicePrincipal is $true, use the Service Principal credentials to get the headers
@@ -105,4 +105,4 @@ $workspaceIds | ForEach-Object {
   Where-Object {$_.LastWriteTime -lt (Get-Date).AddYears(-3)}).FullName
 
 # Remove old folders
-$oldFolders | Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+$oldFolders | Remove-Item -Force -ErrorAction SilentlyContinue
