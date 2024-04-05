@@ -95,11 +95,12 @@ if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
 }
 
 # If $ConvertToTmdl is specified, download latest pbi-tools from GitHub
-# [string]$pbiToolsExe = $null
-# if($ConvertToTmdl) {
-#   Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'Get-LatestPbiTools.psm1')
-#   $pbiToolsExe = Get-LatestPbiTools
-# }
+[string]$pbiToolsExe = $null
+if($ConvertToTmdl) {
+  Remove-Module FabricArchiveBot_PbiTools -ErrorAction SilentlyContinue
+  Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_PbiTools.psm1')
+  $pbiToolsExe = Get-LatestPbiTools
+}
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file
 Unblock-File -Path $localModulePath
@@ -183,10 +184,8 @@ $workspaceIds | ForEach-Object {
     $bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
     foreach ($bimFile in $bimFiles) {
       $tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
-      Invoke-Command -ScriptBlock {
-        # TODO: Open an issue in the pbi-tools repo about the -outPath parameter requiring a trailing slash
-        pbi-tools convert -source $bimFile.FullName -outPath ($tmdlFolder + $slash) -modelSerialization tmdl -overwrite
-      } | Out-Null
+      # TODO: Open an issue in the pbi-tools repo about the -outPath parameter requiring a trailing slash
+      Invoke-Expression -Command "$pbiToolsExe convert -source '$($bimFile.FullName)' -outPath '$($tmdlFolder + $slash)' -modelSerialization tmdl -overwrite" | Out-Null
     }
   }
   $workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
