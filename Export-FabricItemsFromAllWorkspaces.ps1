@@ -29,18 +29,19 @@
 #>
 
 Param(
-  [Parameter()][PSCustomObject]$ConfigObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath "Config.json") | ConvertFrom-Json),
-  [Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath "IgnoreList.json") | ConvertFrom-Json),
+  [Parameter()][PSCustomObject]$ConfigObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Config.json') | ConvertFrom-Json),
+  [Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
   [Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
   [Parameter()][int]$YearsToKeep = 3,
+  [Parameter()][int]$MonthsToKeep = 0,
   [Parameter()][string]$FolderPath = $null,
   [Parameter()][switch]$GetLatestModule,
   [Parameter()][switch]$ConvertToTmdl
 )
 
 # If NuGet package provider is not installed, install it
-if (-not ((Get-PackageProvider).Name -contains "NuGet")) {
-  Register-PackageSource -Name "NuGet.org" -Location "https://api.nuget.org/v3/index.json" -ProviderName "NuGet"
+if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
+  Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
 }
 
 # Declare $moduleName variable
@@ -51,6 +52,8 @@ $localModulePath = (Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName)
 
 # Download latest FabricPS-PBIP.psm1 from Analysis-Services repository if it does not exist, or if $GetLatestModule is specified
 if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
+  Remove-Item $localModulePath -ErrorAction SilentlyContinue
+  Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
   Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
 }
 
@@ -76,9 +79,9 @@ Import-Module $localModulePath
 $slash = [IO.Path]::DirectorySeparatorChar
 
 # Get current date and create a folder hierarchy for the year, month, and day
-[string]$year = Get-Date -Format "yyyy"
-[string]$month = Get-Date -Format "MM"
-[string]$day = Get-Date -Format "dd"
+[string]$year = Get-Date -Format 'yyyy'
+[string]$month = Get-Date -Format 'MM'
+[string]$day = Get-Date -Format 'dd'
 
 # Declare the target folder path if it is not provided as a parameter
 if(!$FolderPath){
@@ -149,9 +152,9 @@ $workspaceIds | ForEach-Object {
   $headers = Get-FabricHeaders
 }
 
-# Get list of all subfolders for dates older than $YearsToKeep years
+# Get list of all subfolders for dates older than $YearsToKeep years and $MonthsToKeep months
 [string[]]$oldFolders = (Get-ChildItem -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces') -Directory -Recurse -Depth 2 | 
-  Where-Object {$_.LastWriteTime -lt (Get-Date).AddYears(-1 * $YearsToKeep)}).FullName
+  Where-Object {$_.LastWriteTime -lt (Get-Date).AddYears(-1 * $YearsToKeep).AddMonths(-1 * $MonthsToKeep)}).FullName
 
 # Remove old folders
 $oldFolders | Remove-Item -Force -ErrorAction SilentlyContinue
