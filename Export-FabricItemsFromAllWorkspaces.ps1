@@ -177,7 +177,6 @@ do {
 $workspaceIds | ForEach-Object {
   [string]$workspaceId = $_
   # Export all items from the Workspace to the target folder
-  # TODO: Open an issue in the Analysis-Services repo about item names with unsupported characters causing errors
   Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
   # If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with pbi-tools
   if($ConvertToTmdl) {
