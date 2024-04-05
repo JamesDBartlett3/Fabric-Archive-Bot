@@ -1,4 +1,5 @@
 Config.json
 .nuget/**
 Workspaces/**
+pbi-tools/**
 FabricPS-PBIP.psm1
