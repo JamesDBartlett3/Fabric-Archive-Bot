@@ -5,6 +5,43 @@
 .DESCRIPTION
   This script exports all items from all active Workspaces in the Fabric/Power BI tenant to a local folder.
 
+.PARAMETER ConfigObject
+  A PSCustomObject containing the configuration settings for the script. The default value is the contents of the Config.json file in the same directory as the script.
+  The object should have the following structure:
+  @{
+    ServicePrincipal = @{
+      TenantId = 'YOUR_TENANT_ID'
+      AppId = 'YOUR_APP_ID'
+      AppSecret = 'YOUR_APP_SECRET'
+    }
+  }
+
+.PARAMETER IgnoreObject
+  A PSCustomObject containing the names of Workspaces and Reports to ignore. The default value is the contents of the IgnoreList.json file in the same directory as the script.
+  The object should have the following structure:
+  @{
+    IgnoreWorkspaces = @('Workspace1', 'Workspace2')
+    IgnoreReports = @('Report1', 'Report2')
+  }
+
+.PARAMETER ModuleUrl
+  The URL of the FabricPS-PBIP.psm1 module. Default value is 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'.
+
+.PARAMETER YearsToKeep
+  The number of years to keep the exported items. Default value is 3.
+
+.PARAMETER MonthsToKeep
+  The number of months to keep the exported items. Default value is 0.
+
+.PARAMETER FolderPath
+  The path to the folder where the items will be exported. If not provided, the items will be exported to a folder named 'Workspaces\YYYY\MM\DD' in the same directory as the script.
+
+.PARAMETER GetLatestModule
+  If specified, the script will download the latest version of the FabricPS-PBIP.psm1 module from the Analysis-Services repository.
+
+.PARAMETER ConvertToTmdl
+  If specified, the script will convert model.bim files into 'definition' TMDL folder using pbi-tools.
+
 .INPUTS
   None
 
@@ -56,6 +93,13 @@ if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
   Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
   Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
 }
+
+# If $ConvertToTmdl is specified, download latest pbi-tools from GitHub
+# [string]$pbiToolsExe = $null
+# if($ConvertToTmdl) {
+#   Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'Get-LatestPbiTools.psm1')
+#   $pbiToolsExe = Get-LatestPbiTools
+# }
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file
 Unblock-File -Path $localModulePath
