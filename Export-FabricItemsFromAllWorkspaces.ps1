@@ -33,7 +33,7 @@
 .PARAMETER MonthsToKeep
   The number of months to keep the exported items. Default value is 0.
 
-.PARAMETER FolderPath
+.PARAMETER TargetFolder
   The path to the folder where the items will be exported. If not provided, the items will be exported to a folder named 'Workspaces\YYYY\MM\DD' in the same directory as the script.
 
 .PARAMETER GetLatestModule
@@ -71,7 +71,7 @@ Param(
   [Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
   [Parameter()][int]$YearsToKeep = 3,
   [Parameter()][int]$MonthsToKeep = 0,
-  [Parameter()][string]$FolderPath = $null,
+  [Parameter()][string]$TargetFolder = $null,
   [Parameter()][switch]$GetLatestModule,
   [Parameter()][switch]$ConvertToTmdl
 )
@@ -128,12 +128,12 @@ $slash = [IO.Path]::DirectorySeparatorChar
 [string]$day = Get-Date -Format 'dd'
 
 # Declare the target folder path if it is not provided as a parameter
-if(!$FolderPath){
-  [string]$FolderPath = Join-Path -Path $PSScriptRoot -ChildPath ('Workspaces' + $slash + $year + $slash + $month + $slash + $day)
+if(!$TargetFolder){
+  [string]$TargetFolder = Join-Path -Path $PSScriptRoot -ChildPath ('Workspaces' + $slash + $year + $slash + $month + $slash + $day)
 }
 # Create the target folder if it does not exist
-if (-not (Test-Path -Path $FolderPath)) {
-  New-Item -Path $FolderPath -ItemType Directory -Force | Out-Null
+if (-not (Test-Path -Path $TargetFolder)) {
+  New-Item -Path $TargetFolder -ItemType Directory -Force | Out-Null
 }
 
 # Initialize the $loopCount variable
@@ -177,10 +177,10 @@ $workspaceIds | ForEach-Object {
   [string]$workspaceId = $_
   # Export all items from the Workspace to the target folder
   # TODO: Open an issue in the Analysis-Services repo about item names with unsupported characters causing errors
-  Export-FabricItems -WorkspaceId $workspaceId -Path $FolderPath -ErrorAction SilentlyContinue
+  Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
   # If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with pbi-tools
   if($ConvertToTmdl) {
-    $bimFiles = Get-ChildItem -Path (Join-Path -Path $FolderPath -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
+    $bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
     foreach ($bimFile in $bimFiles) {
       $tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
       Invoke-Command -ScriptBlock {
@@ -190,8 +190,8 @@ $workspaceIds | ForEach-Object {
     }
   }
   $workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
-  Remove-Item -Recurse (Join-Path -Path $FolderPath -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
-  Rename-Item -Path (Join-Path -Path $FolderPath -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
+  Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
+  Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
   $loopCount += 1
   $headers = Get-FabricHeaders
 }
