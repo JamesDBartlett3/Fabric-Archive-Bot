@@ -85,7 +85,7 @@ if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
 [string]$moduleFileName = Split-Path -Leaf $ModuleUrl
 
 # Declare $localModulePath variable
-$localModulePath = (Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName)
+[string]$localModulePath = (Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName)
 
 # Download latest FabricPS-PBIP.psm1 from Analysis-Services repository if it does not exist, or if $GetLatestModule is specified
 if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
@@ -160,7 +160,7 @@ Function Get-FabricHeaders {
 $headers = Get-FabricHeaders
 
 # Get a list of all active Workspaces in batches of 50 until all workspaces have been fetched
-[string[]]$workspaceIds = @()
+[guid[]]$workspaceIds = @()
 [string]$filter = "(type eq 'Workspace') and (state eq 'Active')"
 [int]$skip = 0
 [int]$batchSize = 5000
@@ -175,7 +175,7 @@ do {
 
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
-  [string]$workspaceId = $_
+  [guid]$workspaceId = $_
   # Export all items from the Workspace to the target folder
   Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
   # If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with pbi-tools
@@ -187,7 +187,7 @@ $workspaceIds | ForEach-Object {
       Invoke-Expression -Command "$pbiToolsExe convert -source '$($bimFile.FullName)' -outPath '$($tmdlFolder + $slash)' -modelSerialization tmdl -overwrite" | Out-Null
     }
   }
-  $workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
+  [string]$workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
   Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
   Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
   $loopCount += 1
