@@ -138,7 +138,7 @@ $workspaceIds | ForEach-Object {
   if($ConvertToTmdl) {
     $bimFiles = Get-ChildItem -Path (Join-Path -Path $FolderPath -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
     foreach ($bimFile in $bimFiles) {
-      $tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath ($bimFile.BaseName + '.tmdl')
+      $tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
       Invoke-Command -ScriptBlock {
         # TODO: Open an issue in the pbi-tools repo about the -outPath parameter requiring a trailing slash
         pbi-tools convert -source $bimFile.FullName -outPath ($tmdlFolder + $slash) -modelSerialization tmdl -overwrite
