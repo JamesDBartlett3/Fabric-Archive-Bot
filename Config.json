@@ -1,7 +1,7 @@
 {
-    "ServicePrincipal": {
-        "AppId": "",
-        "AppSecret": "",
-        "TenantId": ""
-    }
+  "ServicePrincipal": {
+    "AppId": "",
+    "AppSecret": "",
+    "TenantId": ""
+  }
 }
