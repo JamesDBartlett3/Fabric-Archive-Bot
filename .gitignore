@@ -2,4 +2,6 @@ Config.json
 .nuget/**
 Workspaces/**
 pbi-tools/**
+dotnet/**
+dotnet-install.*
 FabricPS-PBIP.psm1

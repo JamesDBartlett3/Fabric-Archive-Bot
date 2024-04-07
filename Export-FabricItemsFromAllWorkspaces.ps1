@@ -66,19 +66,19 @@
 #>
 
 Param(
-  [Parameter()][PSCustomObject]$ConfigObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Config.json') | ConvertFrom-Json),
-  [Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
-  [Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
-  [Parameter()][int]$YearsToKeep = 3,
-  [Parameter()][int]$MonthsToKeep = 0,
-  [Parameter()][string]$TargetFolder = $null,
-  [Parameter()][switch]$GetLatestModule,
-  [Parameter()][switch]$ConvertToTmdl
+	[Parameter()][PSCustomObject]$ConfigObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Config.json') | ConvertFrom-Json),
+	[Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
+	[Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
+	[Parameter()][int]$YearsToKeep = 3,
+	[Parameter()][int]$MonthsToKeep = 0,
+	[Parameter()][string]$TargetFolder = $null,
+	[Parameter()][switch]$GetLatestModule,
+	[Parameter()][switch]$ConvertToTmdl
 )
 
 # If NuGet package provider is not installed, install it
 if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
-  Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
+	Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
 }
 
 # Declare $moduleName variable
@@ -89,17 +89,19 @@ if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
 
 # Download latest FabricPS-PBIP.psm1 from Analysis-Services repository if it does not exist, or if $GetLatestModule is specified
 if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
-  Remove-Item $localModulePath -ErrorAction SilentlyContinue
-  Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
-  Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
+	Remove-Item $localModulePath -ErrorAction SilentlyContinue
+	Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
+	Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
 }
 
-# If $ConvertToTmdl is specified, download latest pbi-tools from GitHub
+# If $ConvertToTmdl is specified, install latest pbi-tools.core and dotnet.core from GitHub
 [string]$pbiToolsExe = $null
-if($ConvertToTmdl) {
-  Remove-Module FabricArchiveBot_PbiTools -ErrorAction SilentlyContinue
-  Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_PbiTools.psm1')
-  $pbiToolsExe = Get-LatestPbiTools
+if ($ConvertToTmdl) {
+	Remove-Module FabricArchiveBot_HelperTools -ErrorAction SilentlyContinue
+	Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_HelperTools.psm1')
+	Install-FABotHelperTools
+	$pbiToolsExe = (Get-FABotExecutableInfo -ExecutableName 'pbi-tools').Path
+	New-Alias -Name 'dotnet' -Value (Get-FABotExecutableInfo -ExecutableName 'dotnet').Path -Force
 }
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file
@@ -129,12 +131,12 @@ $slash = [IO.Path]::DirectorySeparatorChar
 [string]$day = Get-Date -Format 'dd'
 
 # Declare the target folder path if it is not provided as a parameter
-if(!$TargetFolder){
-  [string]$TargetFolder = Join-Path -Path $PSScriptRoot -ChildPath ('Workspaces' + $slash + $year + $slash + $month + $slash + $day)
+if (!$TargetFolder) {
+	[string]$TargetFolder = Join-Path -Path $PSScriptRoot -ChildPath ('Workspaces' + $slash + $year + $slash + $month + $slash + $day)
 }
 # Create the target folder if it does not exist
 if (-not (Test-Path -Path $TargetFolder)) {
-  New-Item -Path $TargetFolder -ItemType Directory -Force | Out-Null
+	New-Item -Path $TargetFolder -ItemType Directory -Force | Out-Null
 }
 
 # Initialize the $loopCount variable
@@ -144,17 +146,18 @@ if (-not (Test-Path -Path $TargetFolder)) {
 # If $useServicePrincipal is $true, use the Service Principal credentials to get the headers
 # Otherwise, use the current user's credentials
 Function Get-FabricHeaders {
-  if ($useServicePrincipal) {
-    if ($loopCount -eq 0) {
-      Logout-AzAccount | Out-Null
-    }
-    Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
-  } else {
-    Set-FabricAuthToken
-  }
-  return @{
-    Authorization="Bearer $(Get-FabricAuthToken)"
-  }
+	if ($useServicePrincipal) {
+		if ($loopCount -eq 0) {
+			Logout-AzAccount | Out-Null
+		}
+		Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
+	}
+ else {
+		Set-FabricAuthToken
+	}
+	return @{
+		Authorization = "Bearer $(Get-FabricAuthToken)"
+	}
 }
 
 $headers = Get-FabricHeaders
@@ -165,38 +168,40 @@ $headers = Get-FabricHeaders
 [int]$skip = 0
 [int]$batchSize = 5000
 do {
-  [string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $filter, $batchSize, $skip
-  $batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
-  $workspaceIds += $batch.value | Where-Object {
-    $_.name -notin $ignoreWorkspaces
-  } | Select-Object -ExpandProperty id
-  $skip += $batchSize
+	[string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $filter, $batchSize, $skip
+	$batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
+	$workspaceIds += $batch.value | Where-Object {
+		$_.name -notin $ignoreWorkspaces
+	} | Select-Object -ExpandProperty id
+	$skip += $batchSize
 } while ($batch.value.Count -eq $batchSize)
 
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
-  [guid]$workspaceId = $_
-  # Export all items from the Workspace to the target folder
-  Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
-  # If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with pbi-tools
-  if($ConvertToTmdl) {
-    $bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
-    foreach ($bimFile in $bimFiles) {
-      $tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
-      # TODO: Open an issue in the pbi-tools repo about the -outPath parameter requiring a trailing slash
-      Invoke-Expression -Command "$pbiToolsExe convert -source '$($bimFile.FullName)' -outPath '$($tmdlFolder + $slash)' -modelSerialization tmdl -overwrite" | Out-Null
-    }
-  }
-  [string]$workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
-  Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
-  Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
-  $loopCount += 1
-  $headers = Get-FabricHeaders
+	[guid]$workspaceId = $_
+	# Export all items from the Workspace to the target folder
+	Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
+	# If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with pbi-tools
+	if ($ConvertToTmdl) {
+		$bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
+		foreach ($bimFile in $bimFiles) {
+			$tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
+			# TODO: Open an issue in the pbi-tools repo about the -outPath parameter requiring a trailing slash
+			$convertCommand = "$pbiToolsExe convert -source '$($bimFile.FullName)' -outPath '$($tmdlFolder + $slash)' -modelSerialization tmdl -overwrite"
+			Write-Host "Converting with command: $convertCommand"
+			Invoke-Expression -Command $convertCommand | Out-Null
+		}
+	}
+	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
+	Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
+	Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
+	$loopCount += 1
+	$headers = Get-FabricHeaders
 }
 
 # Get list of all subfolders for dates older than $YearsToKeep years and $MonthsToKeep months
 [string[]]$oldFolders = (Get-ChildItem -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces') -Directory -Recurse -Depth 2 | 
-  Where-Object {$_.LastWriteTime -lt (Get-Date).AddYears(-1 * $YearsToKeep).AddMonths(-1 * $MonthsToKeep)}).FullName
+	Where-Object { $_.LastWriteTime -lt (Get-Date).AddYears(-1 * $YearsToKeep).AddMonths(-1 * $MonthsToKeep) }).FullName
 
 # Remove old folders
 $oldFolders | Remove-Item -Force -ErrorAction SilentlyContinue
