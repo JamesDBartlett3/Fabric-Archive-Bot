@@ -42,6 +42,7 @@ Function Install-FABotDotNetCore {
 		& $dotNetCoreInstallScriptPath -InstallDir $DotNetCoreLocalInstallDir -Channel STS
 	}
 	else {
+		# TODO: Test this on a Linux machine
 		$DotNetCoreInstallScriptUrl += '.sh'
 		$dotNetCoreInstallScriptPath = Join-Path -Path $PSScriptRoot -ChildPath (Split-Path -Leaf $DotNetCoreInstallScriptUrl)
 		Invoke-WebRequest -Uri $DotNetCoreInstallScriptUrl -OutFile $dotNetCoreInstallScriptPath
@@ -63,13 +64,13 @@ Function Install-FABotPbiToolsCore {
 }
 
 Function Install-FABotHelperTools {
-	[PSCustomObject]$dotNetCoreInfo = Get-FABotExecutableInfo -ExecutableName 'dotnet'
+	[PSCustomObject]$dotNetCoreInfo = Get-FABotExecutableInfo -ExecutableName 'dotnet' -ErrorAction SilentlyContinue
 	[version]$dotNetCoreVersion = $dotNetCoreInfo.Version
 	if (!$dotNetCoreVersion -or $dotNetCoreVersion -lt [version]'6.0') {
 		Install-FABotDotNetCore
 		Install-FABotHelperTools
 	}
-	[PSCustomObject]$pbiToolsCoreInfo = Get-FABotExecutableInfo -ExecutableName 'pbi-tools'
+	[PSCustomObject]$pbiToolsCoreInfo = Get-FABotExecutableInfo -ExecutableName 'pbi-tools' -ErrorAction SilentlyContinue
 	if (!($pbiToolsCoreInfo).Path) {
 		Install-FABotPbiToolsCore
 		Install-FABotHelperTools
