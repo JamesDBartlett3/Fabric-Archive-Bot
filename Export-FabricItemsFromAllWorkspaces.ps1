@@ -100,8 +100,9 @@ if ($ConvertToTmdl) {
 	Remove-Module FabricArchiveBot_HelperTools -ErrorAction SilentlyContinue
 	Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_HelperTools.psm1')
 	Install-FABotHelperTools
-	$pbiToolsExe = (Get-FABotExecutableInfo -ExecutableName 'pbi-tools').Path
-	New-Alias -Name 'dotnet' -Value (Get-FABotExecutableInfo -ExecutableName 'dotnet').Path -Force
+	# TODO: Ask Matthias how to make pbi-tools use the downloaded version of dotnet.core
+	# $pbiToolsExe = (Get-FABotExecutableInfo -ExecutableName 'pbi-tools').Path
+	$pbiToolsExe = (Get-Command 'pbi-tools').Source.ToString()
 }
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file
