@@ -94,16 +94,17 @@ if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
 	Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
 }
 
-# If $ConvertToTmdl is specified, install latest pbi-tools.core and dotnet.core from GitHub
-[string]$pbiToolsExe = $null
-if ($ConvertToTmdl) {
-	Remove-Module FabricArchiveBot_HelperTools -ErrorAction SilentlyContinue
-	Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_HelperTools.psm1')
-	Install-FABotHelperTools
-	# TODO: Ask Matthias how to make pbi-tools use the downloaded version of dotnet.core
+## If $ConvertToTmdl is specified, install latest pbi-tools.core and dotnet.core from GitHub
+# [string]$pbiToolsExe = $null
+$compatibilityMode = [Microsoft.AnalysisServices.CompatibilityMode]::PowerBI
+# if ($ConvertToTmdl) {
+# 	Remove-Module FabricArchiveBot_HelperTools -ErrorAction SilentlyContinue
+# 	Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_HelperTools.psm1')
+	# Install-FABotHelperTools
+	## TODO: Ask Matthias how to make pbi-tools use the downloaded version of dotnet.core
 	# $pbiToolsExe = (Get-FABotExecutableInfo -ExecutableName 'pbi-tools').Path
-	$pbiToolsExe = (Get-Command 'pbi-tools').Source.ToString()
-}
+	# $pbiToolsExe = (Get-Command 'pbi-tools').Source.ToString()
+# }
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file
 Unblock-File -Path $localModulePath
@@ -152,8 +153,7 @@ Function Get-FabricHeaders {
 			Logout-AzAccount | Out-Null
 		}
 		Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
-	}
- else {
+	} else {
 		Set-FabricAuthToken
 	}
 	return @{
@@ -187,10 +187,13 @@ $workspaceIds | ForEach-Object {
 		$bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
 		foreach ($bimFile in $bimFiles) {
 			$tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
+			$modelText = Get-Content $bimFile.FullName
+			$database = [Microsoft.AnalysisServices.Tabular.JsonSerializer]::DeserializeDatabase($modelText, $null, $compatibilityMode)
+			[Microsoft.AnalysisServices.Tabular.TmdlSerializer]::SerializeDatabaseToFolder($database, $tmdlFolder)
 			# TODO: Open an issue in the pbi-tools repo about the -outPath parameter requiring a trailing slash
-			$convertCommand = "$pbiToolsExe convert -source '$($bimFile.FullName)' -outPath '$($tmdlFolder + $slash)' -modelSerialization tmdl -overwrite"
-			Write-Host "Converting with command: $convertCommand"
-			Invoke-Expression -Command $convertCommand | Out-Null
+			# $convertCommand = "$pbiToolsExe convert -source '$($bimFile.FullName)' -outPath '$($tmdlFolder + $slash)' -modelSerialization tmdl -overwrite"
+			# Write-Host "Converting with command: $convertCommand"
+			# Invoke-Expression -Command $convertCommand | Out-Null
 		}
 	}
 	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
