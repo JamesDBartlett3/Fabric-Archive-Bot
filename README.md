@@ -2,10 +2,10 @@
 A fully automated Microsoft Fabric/Power BI tenant backup solution written in PowerShell
 
 ## Features
-- **Service Principal Support**: Can authenticate as an Azure AD App Registration (a.k.a. "Service Principal"), so you don't need to login with your user account. This is especially useful for running the script on a schedule in an unattended environment. *Note: You will need to create an App Registration in Azure AD, add it to a new security group, grant that group the necessary permissions in the Power BI Admin Portal, and then provide the Tenant ID, App ID, and App Secret in the `Config.json` file.*
+- **Service Principal Support**: Can authenticate as an Entra ID App Registration (a.k.a. "Service Principal"), so you don't need to login with your user account. This is especially useful for running the script on a schedule in an unattended environment. *Note: You will need to create an App Registration in Entra ID, add it to a new security group, grant that group the necessary permissions in the Power BI Admin Portal, and then provide the Tenant ID, App ID, and App Secret in the `Config.json` file.*
 - **Fully Automated**: Run on a daily schedule to automatically back up all workspaces in your Fabric tenant (use Task Scheduler in Windows or a similar tool).
 - **Configurable**: Customize the target folder, semantic model format (TMSL/TMDL), workspaces to archive, retention policy, and more (run `Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Detailed` for more information).
-- **Secure**: Uses Azure AD authentication to access the Fabric REST APIs, so you don't need to store your username and password in the script.
+- **Secure**: Uses Entra ID authentication to access the Fabric REST APIs, so you don't need to store your username and password in the script.
 
 ## Current Limitations
 - **Azure Function**: Will run on a local machine or server, but does not currently support running as an Azure Function. This feature is planned for a future release.
