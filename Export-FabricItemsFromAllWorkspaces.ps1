@@ -168,8 +168,7 @@ $headers = Get-FabricHeaders
 [int]$skip = 0
 [int]$batchSize = 5000
 do {
-	# TODO: Replace Power BI API call with Fabric API call: Invoke-FabricAPIRequest -Uri "workspaces" -Method Get -Headers $headers
-	# Fabric workspaces API documentation: https://learn.microsoft.com/en-us/rest/api/fabric/admin/workspaces/list-workspaces?tabs=HTTP
+	# TODO: Replace Power BI API call with Fabric API call: https://learn.microsoft.com/en-us/rest/api/fabric/admin/workspaces/list-workspaces?tabs=HTTP
 	[string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $WorkspaceFilter, $batchSize, $skip
 	$batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
 	$workspaceIds += $batch.value | Where-Object {
@@ -205,4 +204,4 @@ $workspaceIds | ForEach-Object {
 [string[]]$oldFolders = (Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | Where-Object { $_.LastWriteTime -lt $RetentionCutoffDate }).FullName
 
 # Remove old folders
-$oldFolders | Remove-Item -Force -ErrorAction SilentlyContinue
+$oldFolders | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
