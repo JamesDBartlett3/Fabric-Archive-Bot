@@ -121,9 +121,10 @@ Import-Module $localModulePath
 $slash = [IO.Path]::DirectorySeparatorChar
 
 # Get current date and create a folder hierarchy for the year, month, and day
-[string]$year = Get-Date -Format 'yyyy'
-[string]$month = Get-Date -Format 'MM'
-[string]$day = Get-Date -Format 'dd'
+[datetime]$date = Get-Date
+[string]$year = $date.Year.ToString()
+[string]$month = $date.Month.ToString("D2")
+[string]$day = $date.Day.ToString("D2")
 
 # Declare the target folder path if it is not provided as a parameter
 if (!$TargetFolder) {
