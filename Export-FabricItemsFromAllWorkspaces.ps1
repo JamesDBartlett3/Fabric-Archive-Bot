@@ -94,18 +94,6 @@ if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
 	Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
 }
 
-## If $ConvertToTmdl is specified, install latest pbi-tools.core and dotnet.core from GitHub
-# [string]$pbiToolsExe = $null
-$compatibilityMode = [Microsoft.AnalysisServices.CompatibilityMode]::PowerBI
-# if ($ConvertToTmdl) {
-# 	Remove-Module FabricArchiveBot_HelperTools -ErrorAction SilentlyContinue
-# 	Import-Module (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_HelperTools.psm1')
-	# Install-FABotHelperTools
-	## TODO: Ask Matthias how to make pbi-tools use the downloaded version of dotnet.core
-	# $pbiToolsExe = (Get-FABotExecutableInfo -ExecutableName 'pbi-tools').Path
-	# $pbiToolsExe = (Get-Command 'pbi-tools').Source.ToString()
-# }
-
 # Unblock the downloaded FabricPS-PBIP.psm1 file
 Unblock-File -Path $localModulePath
 
@@ -114,6 +102,7 @@ Import-Module $localModulePath
 
 # Get names of Workspaces and Reports to ignore from the $IgnoreObject parameter
 [array]$ignoreWorkspaces = $IgnoreObject.IgnoreWorkspaces
+# TODO: Implement IgnoreReports
 # [array]$ignoreReports = $IgnoreObject.IgnoreReports
 
 # Get configuration settings from the $ConfigObject parameter
@@ -163,7 +152,7 @@ Function Get-FabricHeaders {
 
 $headers = Get-FabricHeaders
 
-# Get a list of all active Workspaces in batches of 50 until all workspaces have been fetched
+# Get a list of all active Workspaces in batches of 5000 until all workspaces have been fetched
 [guid[]]$workspaceIds = @()
 [string]$filter = "(type eq 'Workspace') and (state eq 'Active')"
 [int]$skip = 0
@@ -182,20 +171,17 @@ $workspaceIds | ForEach-Object {
 	[guid]$workspaceId = $_
 	# Export all items from the Workspace to the target folder
 	Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
-	# If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with pbi-tools
+	# If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with Microsoft.AnalysisServices.Tabular
 	if ($ConvertToTmdl) {
 		$bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
 		foreach ($bimFile in $bimFiles) {
 			$tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
 			$modelText = Get-Content $bimFile.FullName
-			$database = [Microsoft.AnalysisServices.Tabular.JsonSerializer]::DeserializeDatabase($modelText, $null, $compatibilityMode)
+			$database = [Microsoft.AnalysisServices.Tabular.JsonSerializer]::DeserializeDatabase($modelText, $null, [Microsoft.AnalysisServices.CompatibilityMode]::PowerBI)
 			[Microsoft.AnalysisServices.Tabular.TmdlSerializer]::SerializeDatabaseToFolder($database, $tmdlFolder)
-			# TODO: Open an issue in the pbi-tools repo about the -outPath parameter requiring a trailing slash
-			# $convertCommand = "$pbiToolsExe convert -source '$($bimFile.FullName)' -outPath '$($tmdlFolder + $slash)' -modelSerialization tmdl -overwrite"
-			# Write-Host "Converting with command: $convertCommand"
-			# Invoke-Expression -Command $convertCommand | Out-Null
 		}
 	}
+	# Get the name of the Workspace and rename the folder to the Workspace name
 	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
 	Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
 	Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
