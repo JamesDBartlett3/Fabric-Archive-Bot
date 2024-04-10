@@ -24,6 +24,9 @@
     IgnoreReports = @('Report1', 'Report2')
   }
 
+.PARAMETER WorkspaceFilter
+	The filter expression for which Workspaces to export. Default value is '(type eq ''Workspace'') and (state eq ''Active'')'.
+
 .PARAMETER ModuleUrl
   The URL of the FabricPS-PBIP.psm1 module. Default value is 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'.
 
@@ -68,6 +71,7 @@
 Param(
 	[Parameter()][PSCustomObject]$ConfigObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Config.json') | ConvertFrom-Json),
 	[Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
+	[Parameter()][string]$WorkspaceFilter = '(type eq ''Workspace'') and (state eq ''Active'')',
 	[Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
 	[Parameter()][int]$YearsToKeep = 3,
 	[Parameter()][int]$MonthsToKeep = 0,
@@ -154,11 +158,10 @@ $headers = Get-FabricHeaders
 
 # Get a list of all active Workspaces in batches of 5000 until all workspaces have been fetched
 [guid[]]$workspaceIds = @()
-[string]$filter = "(type eq 'Workspace') and (state eq 'Active')"
 [int]$skip = 0
 [int]$batchSize = 5000
 do {
-	[string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $filter, $batchSize, $skip
+	[string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $WorkspaceFilter, $batchSize, $skip
 	$batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
 	$workspaceIds += $batch.value | Where-Object {
 		$_.name -notin $ignoreWorkspaces
@@ -181,12 +184,12 @@ $workspaceIds | ForEach-Object {
 			[Microsoft.AnalysisServices.Tabular.TmdlSerializer]::SerializeDatabaseToFolder($database, $tmdlFolder)
 		}
 	}
+	$headers = Get-FabricHeaders
 	# Get the name of the Workspace and rename the folder to the Workspace name
 	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
 	Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
 	Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
 	$loopCount += 1
-	$headers = Get-FabricHeaders
 }
 
 # Get list of all subfolders for dates older than $YearsToKeep years and $MonthsToKeep months
