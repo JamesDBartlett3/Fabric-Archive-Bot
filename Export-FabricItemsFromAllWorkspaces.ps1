@@ -84,6 +84,11 @@ if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
 	Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
 }
 
+# If Az.Account module is not installed, install it
+if (-not (Get-Module -Name Az.Accounts -ListAvailable)) {
+	Install-Module -Name Az.Accounts -Scope CurrentUser
+}
+
 # Declare $moduleName variable
 [string]$moduleFileName = Split-Path -Leaf $ModuleUrl
 
