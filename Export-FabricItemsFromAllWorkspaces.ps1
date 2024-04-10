@@ -30,14 +30,11 @@
 .PARAMETER ModuleUrl
   The URL of the FabricPS-PBIP.psm1 module. Default value is 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'.
 
-.PARAMETER YearsToKeep
-  The number of years to keep the exported items. Default value is 3.
-
-.PARAMETER MonthsToKeep
-  The number of months to keep the exported items. Default value is 0.
-
-.PARAMETER DaysToKeep
-	The number of days to keep the exported items. Default value is 0.
+.PARAMETER RetentionCutoffDate
+	The cutoff date for retention of exported items. Default value is 12:00AM on the current date minus 30 days. 
+	The datatype is [datetime], so the input must be expressed as either:
+		- A datetime-formatted string (e.g. '2024-01-01', '2024-01-01T00:00:00', etc.)
+		- A [datetime] object (e.g. (Get-Date).Date.AddDays(-30), (Get-Date).Date.AddYears(-1), etc.)
 
 .PARAMETER TargetFolder
   The path to the folder where the items will be exported. If not provided, the items will be exported to a folder named 'Workspaces\YYYY\MM\DD' in the same directory as the script.
@@ -49,10 +46,10 @@
   If specified, the script will convert model.bim files into 'definition' TMDL folder using pbi-tools.
 
 .INPUTS
-  None
+  None - Pipeline input is not accepted.
 
 .OUTPUTS
-  None
+  None - Pipeline output is not produced.
 
 .LINK
   [Source code](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/blob/main/Export-FabricItemsFromAllWorkspaces.ps1)
@@ -76,9 +73,7 @@ Param(
 	[Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
 	[Parameter()][string]$WorkspaceFilter = '(type eq ''Workspace'') and (state eq ''Active'')',
 	[Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
-	[Parameter()][int]$YearsToKeep = 3,
-	[Parameter()][int]$MonthsToKeep = 0,
-	[Parameter()][int]$DaysToKeep = 0,
+	[Parameter()][datetime]$RetentionCutoffDate = (Get-Date).Date.AddDays(-30),
 	[Parameter()][string]$TargetFolder = (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces'),
 	[Parameter()][switch]$GetLatestModule,
 	[Parameter()][switch]$ConvertToTmdl
@@ -196,9 +191,8 @@ $workspaceIds | ForEach-Object {
 	$loopCount += 1
 }
 
-# Get list of all subfolders for dates older than $YearsToKeep years and $MonthsToKeep months
-[string[]]$oldFolders = (Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | 
-	Where-Object { $_.LastWriteTime -lt (Get-Date).AddYears(-1 * $YearsToKeep).AddMonths(-1 * $MonthsToKeep).AddDays(-1 * $DaysToKeep) }).FullName
+# Get list of all subfolders for dates older than $RetentionCutoffDate
+[string[]]$oldFolders = (Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | Where-Object { $_.LastWriteTime -lt $RetentionCutoffDate }).FullName
 
 # Remove old folders
 $oldFolders | Remove-Item -Force -ErrorAction SilentlyContinue
