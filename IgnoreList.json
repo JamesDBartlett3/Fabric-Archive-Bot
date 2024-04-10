@@ -21,5 +21,9 @@
     "Workspace Usage Metrics Report",
     "Report Usage Metrics Report",
     "Usage Metrics Report"
+  ],
+  "IgnoreSemanticModels": [
+    "Report Usage Metrics Model",
+    "Usage Metrics Report"
   ]
 }
