@@ -36,6 +36,9 @@
 .PARAMETER MonthsToKeep
   The number of months to keep the exported items. Default value is 0.
 
+.PARAMETER DaysToKeep
+	The number of days to keep the exported items. Default value is 0.
+
 .PARAMETER TargetFolder
   The path to the folder where the items will be exported. If not provided, the items will be exported to a folder named 'Workspaces\YYYY\MM\DD' in the same directory as the script.
 
@@ -75,7 +78,8 @@ Param(
 	[Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
 	[Parameter()][int]$YearsToKeep = 3,
 	[Parameter()][int]$MonthsToKeep = 0,
-	[Parameter()][string]$TargetFolder = $null,
+	[Parameter()][string]$DaysToKeep = 0,
+	[Parameter()][string]$TargetFolder = (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces'),
 	[Parameter()][switch]$GetLatestModule,
 	[Parameter()][switch]$ConvertToTmdl
 )
@@ -93,16 +97,16 @@ if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
 
 # Download latest FabricPS-PBIP.psm1 from Analysis-Services repository if it does not exist, or if $GetLatestModule is specified
 if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
-	Remove-Item $localModulePath -ErrorAction SilentlyContinue
 	Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
+	Remove-Item $localModulePath -ErrorAction SilentlyContinue
 	Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
 }
 
-# Unblock the downloaded FabricPS-PBIP.psm1 file
+# Unblock the downloaded FabricPS-PBIP.psm1 file so it can be imported
 Unblock-File -Path $localModulePath
 
 # Import the FabricPS-PBIP module
-Import-Module $localModulePath
+Import-Module $localModulePath -ErrorAction SilentlyContinue
 
 # Get names of Workspaces and Reports to ignore from the $IgnoreObject parameter
 [array]$ignoreWorkspaces = $IgnoreObject.IgnoreWorkspaces
@@ -117,19 +121,18 @@ Import-Module $localModulePath
 # Instantiate $useServicePrincipal variable as $true if Service Principal credentials are provided in the $ConfigObject parameter
 [bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret
 
-# Declare $slash variable to use as platform-agnostic directory separator
-$slash = [IO.Path]::DirectorySeparatorChar
-
 # Get current date and create a folder hierarchy for the year, month, and day
 [datetime]$date = Get-Date
 [string]$year = $date.Year.ToString()
 [string]$month = $date.Month.ToString("D2")
 [string]$day = $date.Day.ToString("D2")
 
-# Declare the target folder path if it is not provided as a parameter
-if (!$TargetFolder) {
-	[string]$TargetFolder = Join-Path -Path $PSScriptRoot -ChildPath ('Workspaces' + $slash + $year + $slash + $month + $slash + $day)
-}
+# Declare $sep variable to use as platform-agnostic directory separator
+[string]$sep = [IO.Path]::DirectorySeparatorChar
+
+# Add the year, month, and day to the target folder path
+$TargetFolder = Join-Path -Path $TargetFolder -ChildPath ($year + $sep + $month + $sep + $day)
+
 # Create the target folder if it does not exist
 if (-not (Test-Path -Path $TargetFolder)) {
 	New-Item -Path $TargetFolder -ItemType Directory -Force | Out-Null
@@ -194,8 +197,8 @@ $workspaceIds | ForEach-Object {
 }
 
 # Get list of all subfolders for dates older than $YearsToKeep years and $MonthsToKeep months
-[string[]]$oldFolders = (Get-ChildItem -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces') -Directory -Recurse -Depth 2 | 
-	Where-Object { $_.LastWriteTime -lt (Get-Date).AddYears(-1 * $YearsToKeep).AddMonths(-1 * $MonthsToKeep) }).FullName
+[string[]]$oldFolders = (Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | 
+	Where-Object { $_.LastWriteTime -lt (Get-Date).AddYears(-1 * $YearsToKeep).AddMonths(-1 * $MonthsToKeep).AddDays(-1 * $DaysToKeep) }).FullName
 
 # Remove old folders
 $oldFolders | Remove-Item -Force -ErrorAction SilentlyContinue
