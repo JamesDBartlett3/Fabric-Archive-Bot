@@ -52,11 +52,14 @@
   None - Pipeline output is not produced.
 
 .LINK
-  [Source code](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/blob/main/Export-FabricItemsFromAllWorkspaces.ps1)
+  [Source code](https://github.com/JamesDBartlett3/Fabric-Archive-Bot)
 
 .LINK
-  [The author's blog](https://datavolume.xyz)
-  
+  [Follow the author's blog](https://datavolume.xyz)
+
+.LINK
+	[Follow the author on GitHub](https://github.com/JamesDBartlett3)
+
 .LINK
   [Follow the author on LinkedIn](https://www.linkedin.com/in/jamesdbartlett3/)
 
