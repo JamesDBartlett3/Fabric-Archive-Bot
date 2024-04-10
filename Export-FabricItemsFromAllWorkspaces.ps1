@@ -168,6 +168,8 @@ $headers = Get-FabricHeaders
 [int]$skip = 0
 [int]$batchSize = 5000
 do {
+	# TODO: Replace Power BI API call with Fabric API call: Invoke-FabricAPIRequest -Uri "workspaces" -Method Get -Headers $headers
+	# Fabric workspaces API documentation: https://learn.microsoft.com/en-us/rest/api/fabric/admin/workspaces/list-workspaces?tabs=HTTP
 	[string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $WorkspaceFilter, $batchSize, $skip
 	$batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
 	$workspaceIds += $batch.value | Where-Object {
@@ -193,7 +195,7 @@ $workspaceIds | ForEach-Object {
 	}
 	$headers = Get-FabricHeaders
 	# Get the name of the Workspace and rename the folder to the Workspace name
-	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.powerbi.com/v1.0/myorg/groups/$workspaceId" -Method GET -Headers $headers).name
+	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/admin/workspaces/$workspaceId" -Method GET -Headers $headers).name
 	Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
 	Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
 	$loopCount += 1
