@@ -200,8 +200,27 @@ $workspaceIds | ForEach-Object {
 	$loopCount += 1
 }
 
-# Get list of all subfolders for dates older than $RetentionCutoffDate
-[string[]]$oldFolders = (Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | Where-Object { $_.LastWriteTime -lt $RetentionCutoffDate }).FullName
+# Measure the hierarchy depth of a folder
+Function Measure-FolderDepth($path) {
+	$absolutePath = Resolve-Path $path
+	$parts = Split-Path $absolutePath -NoQualifier
+	$folderDepth = $parts.Split($sep).Count
+	return $folderDepth
+}
 
-# Remove old folders
-$oldFolders | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+# Measure the depth of the target folder
+[int]$targetFolderDepth = Measure-FolderDepth $TargetFolder
+
+# Get list of all archives older than $RetentionCutoffDate
+$oldFolders = Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | Where-Object { $_.CreationTime -lt $RetentionCutoffDate }
+
+# Remove old folders deeper than the target folder depth + 2
+foreach($oldFolder in $oldFolders) {
+	[int]$folderDepth = Measure-FolderDepth $oldFolder
+	if ($folderDepth -gt $targetFolderDepth + 2) {
+		Remove-Item -Path $oldFolder -Recurse -Force -ErrorAction SilentlyContinue
+	}
+}
+
+# Remove empty folders
+Get-ChildItem -Path $TargetFolder -Directory -Recurse | Where-Object { $_.GetFiles().Count -eq 0 -and $_.GetDirectories().Count -eq 0 } | Remove-Item -Force -ErrorAction SilentlyContinue
