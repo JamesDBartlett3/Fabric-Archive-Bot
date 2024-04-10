@@ -78,7 +78,7 @@ Param(
 	[Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
 	[Parameter()][int]$YearsToKeep = 3,
 	[Parameter()][int]$MonthsToKeep = 0,
-	[Parameter()][string]$DaysToKeep = 0,
+	[Parameter()][int]$DaysToKeep = 0,
 	[Parameter()][string]$TargetFolder = (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces'),
 	[Parameter()][switch]$GetLatestModule,
 	[Parameter()][switch]$ConvertToTmdl
