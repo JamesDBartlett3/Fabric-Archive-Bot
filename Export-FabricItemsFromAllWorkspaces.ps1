@@ -164,11 +164,11 @@ Function Get-FabricHeaders {
 $headers = Get-FabricHeaders
 
 # Get a list of all active Workspaces in batches of 5000 until all workspaces have been fetched
+# TODO: Replace Power BI API call with Fabric API call: https://learn.microsoft.com/en-us/rest/api/fabric/admin/workspaces/list-workspaces?tabs=HTTP
 [guid[]]$workspaceIds = @()
 [int]$skip = 0
 [int]$batchSize = 5000
 do {
-	# TODO: Replace Power BI API call with Fabric API call: https://learn.microsoft.com/en-us/rest/api/fabric/admin/workspaces/list-workspaces?tabs=HTTP
 	[string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $WorkspaceFilter, $batchSize, $skip
 	$batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
 	$workspaceIds += $batch.value | Where-Object {

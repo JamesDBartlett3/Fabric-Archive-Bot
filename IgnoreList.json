@@ -18,6 +18,8 @@
   ],
   "IgnoreReports": [
     "Dashboard Usage Metrics Report",
-    "Report Usage Metrics Report"
+    "Workspace Usage Metrics Report",
+    "Report Usage Metrics Report",
+    "Usage Metrics Report"
   ]
 }
