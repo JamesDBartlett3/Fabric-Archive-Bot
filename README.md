@@ -1,9 +1,11 @@
 # Fabric-Archive-Bot
-A fully automated Microsoft Fabric/Power BI tenant backup solution written in PowerShell
+A fully automated Microsoft Power BI/Fabric tenant backup solution written in PowerShell
 
 ## Features
+- **Free & Open Source**: No licensing fees, no vendor lock-in, and full access to the source code. You can run this script on your own hardware or in your own cloud environment, and you can modify the code to suit your needs. If you find a bug or want to add a feature, you can create [an issue](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/issues/new/choose) or [a pull request](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/fork).
+- **Export Reports & Semantic Models**: Exports all reports and semantic models (formerly "datasets") from all workspaces in your Power BI/Fabric tenant to a local directory.
 - **Service Principal Support**: Can authenticate as an Entra ID App Registration (a.k.a. "Service Principal"), so you don't need to login with your user account. This is especially useful for running the script on a schedule in an unattended environment. *Note: You will need to create an App Registration in Entra ID, add it to a new security group, grant that group the necessary permissions in the Power BI Admin Portal, and then provide the Tenant ID, App ID, and App Secret in the `Config.json` file.*
-- **Fully Automated**: Run on a daily schedule to automatically back up all workspaces in your Fabric tenant (use Task Scheduler in Windows or a similar tool).
+- **Fully Automated**: Run the script on a daily schedule to automatically back up all workspaces in your Power BI/Fabric tenant (use Task Scheduler in Windows or a similar tool).
 - **Configurable**: Customize the target folder, semantic model format (TMSL/TMDL), workspaces to archive, retention policy, and more (run `Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Detailed` for more information).
 - **Secure**: Uses Entra ID authentication to access the Fabric REST APIs, so you don't need to store your username and password in the script.
 
