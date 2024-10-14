@@ -10,7 +10,7 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 - **Configurable**: Customize the target folder, semantic model format (TMSL/TMDL), workspaces to archive, retention policy, and more (run `Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Detailed` for more information).
 - **Secure**: Uses Entra ID authentication to access the Fabric REST APIs, so you don't need to store your username and password in the script.
 
-## Current Limitations
+## Current Issues & Limitations
 - **Corruption of embedded PNG image files**: This script leverages the `Export-FabricItems` function from [@RuiRomano](https://github.com/RuiRomano)'s `FabricPS-PBIP` module to export items like reports and semantic models from Microsoft Fabric. Currently, there is a bug that causes PNG image files embedded in reports (e.g. scrims, company logos, etc.) to become corrupted during the export process. [I reported this issue](https://github.com/microsoft/Analysis-Services/issues/266) in the `Analysis-Services` repo where the `FabricPS-PBIP` module is published, and [Rui is now looking into whether the bug is in his module or the underlying Fabric REST API](https://github.com/microsoft/Analysis-Services/issues/266#issuecomment-2182591274). I will update this section when I have more information.
 - **Windows Machine**: Runs on Windows in a local or cloud environment (physical or virtual machine), but does not currently support running as an Azure Function (a.k.a "serverless"). This feature is planned for a future release.
 - **Local Storage**: Exports items to a local directory, but does not currently support exporting to Azure Blob Storage, Amazon S3, Google Cloud Storage, etc. This feature is planned for a future release.
