@@ -179,12 +179,15 @@ do {
 
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
+
+	$currentDirectory = Join-Path -Path $TargetFolder -ChildPath $workspaceId
+
 	[guid]$workspaceId = $_
 	# Export all items from the Workspace to the target folder
 	Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
 	# If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with Microsoft.AnalysisServices.Tabular
 	if ($ConvertToTmdl) {
-		$bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
+		$bimFiles = Get-ChildItem -Path $currentDirectory -Filter '*.bim' -Recurse -File
 		foreach ($bimFile in $bimFiles) {
 			$tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
 			$modelText = Get-Content $bimFile.FullName
@@ -193,46 +196,51 @@ $workspaceIds | ForEach-Object {
 		}
 	}
 
-	# Get the contents of the folder and create lists of Semantic Models and Reports
-	$items = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Directory
-	$semanticModels = $items | Where-Object { $_.Name -match '*.SemanticModel' }
-	$reports = $items | Where-Object { $_.Name -match '*.Report' }
-
-	# Create a list of Thick Reports (Reports whose name matches the name of a Semantic Model)
-	$thickReports = @()
-	foreach ($semanticModel in $semanticModels) {
-		$report = $reports | Where-Object { $_.Name -eq $semanticModel.Name -replace '.SemanticModel', '.Report' }
-		if ($report) {
-			$thickReports += $report
-		}
-	}
-
-	# Create a list of Thin Reports (Reports without a matching Semantic Model)
-	$thinReports = $reports | Where-Object { $_ -notin $thickReports }
-
-	# Create a list of Thin Models (Semantic Models without a matching Report)
-	$thinModels = $semanticModels | Where-Object { $_.Name -replace '.SemanticModel', '.Report' -notin $thickReports }
-
+	# Get list of folders containing a file called 'definition.pbism'
+	$semanticModelFolders = Get-ChildItem -Path $currentDirectory -Directory | Where-Object { $_.GetFiles('definition.pbism')}
+	# Get list of folders containing a file called 'definition.pbir'
+	$reportFolders = Get-ChildItem -Path $currentDirectory -Directory | Where-Object { $_.GetFiles('definition.pbir')}
+	# Get list of Thick Reports (Reports with a matching Semantic Model)
+	$thickReportFolders = $reportFolders | Where-Object { $_.Name -replace '\.Report', '.SemanticModel' -in $semanticModelFolders.Name }
+	
 	# Create PBIP files for Thick Reports
-	foreach ($thickReport in $thickReports) {
-		$pbipFileName = $thickReport.FullName -replace '.Report', '.pbip'
-		$semanticModelId = $thickReport.Name -replace '.Report', '.SemanticModel'
-		$pbipFilePath = Join-Path -Path ($thickReport.FullName -replace '.Report', '.pbip')
+	foreach ($report in $thickReportFolders) {
+		$pbipFileName = $report.Name -replace '\.Report', '.pbip'
+		$pbipFilePath = Join-Path -Path $currentDirectory -ChildPath $pbipFileName
+		$semanticModelPath = $report.FullName -replace '\.Report', '.SemanticModel'
 		$pbipJSON = @{
 			"version" = "1.0"
 			"artifacts" = @(
 				@{
 					"report" = @{
-						"path" = $thickReport.Name
+						"path" = $report.Name
 					}
 				}
 			)
-			"settings" = @{
-				"enableAutoRecovery" = $true
-			}
 		} | ConvertTo-Json -Depth 10
+		
+		# Write the JSON to the PBIP file
 		Set-Content -Path $pbipFilePath -Value $pbipJSON
+
+		# Remove the 'item.metadata.json' files from the Report and Semantic Model folders
+		# (Power BI Desktop will not open the PBIP file if these files are present)
+		Remove-Item -Path (Join-Path -Path $semanticModelPath -ChildPath 'item.metadata.json') -Force -ErrorAction SilentlyContinue
+		Remove-Item -Path (Join-Path -Path $report.FullName -ChildPath 'item.metadata.json') -Force -ErrorAction SilentlyContinue
+
+		# Modify the Report's 'definition.pbir' file to point to the local Semantic Model
+		$pbirFilePath = Join-Path -Path $report.FullName -ChildPath 'definition.pbir'
+		$pbirObject = Get-Content -Path $pbirFilePath | ConvertFrom-Json -Depth 10
+		$pbirObject.datasetReference = @{
+			"byPath" = @{
+				"path" = "../$($semanticModelPath | Split-Path -Leaf)"
+			}
+			"byConnection" = $null
+		}
+		$pbirJSON = $pbirObject | ConvertTo-Json -Depth 10
+		Set-Content -Path $pbirFilePath -Value $pbirJSON
 	}
+
+	# 
 
 
 	$headers = Get-FabricHeaders
