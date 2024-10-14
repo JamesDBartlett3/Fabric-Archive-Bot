@@ -192,6 +192,49 @@ $workspaceIds | ForEach-Object {
 			[Microsoft.AnalysisServices.Tabular.TmdlSerializer]::SerializeDatabaseToFolder($database, $tmdlFolder)
 		}
 	}
+
+	# Get the contents of the folder and create lists of Semantic Models and Reports
+	$items = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Directory
+	$semanticModels = $items | Where-Object { $_.Name -match '*.SemanticModel' }
+	$reports = $items | Where-Object { $_.Name -match '*.Report' }
+
+	# Create a list of Thick Reports (Reports whose name matches the name of a Semantic Model)
+	$thickReports = @()
+	foreach ($semanticModel in $semanticModels) {
+		$report = $reports | Where-Object { $_.Name -eq $semanticModel.Name -replace '.SemanticModel', '.Report' }
+		if ($report) {
+			$thickReports += $report
+		}
+	}
+
+	# Create a list of Thin Reports (Reports without a matching Semantic Model)
+	$thinReports = $reports | Where-Object { $_ -notin $thickReports }
+
+	# Create a list of Thin Models (Semantic Models without a matching Report)
+	$thinModels = $semanticModels | Where-Object { $_.Name -replace '.SemanticModel', '.Report' -notin $thickReports }
+
+	# Create PBIP files for Thick Reports
+	foreach ($thickReport in $thickReports) {
+		$pbipFileName = $thickReport.FullName -replace '.Report', '.pbip'
+		$semanticModelId = $thickReport.Name -replace '.Report', '.SemanticModel'
+		$pbipFilePath = Join-Path -Path ($thickReport.FullName -replace '.Report', '.pbip')
+		$pbipJSON = @{
+			"version" = "1.0"
+			"artifacts" = @(
+				@{
+					"report" = @{
+						"path" = $thickReport.Name
+					}
+				}
+			)
+			"settings" = @{
+				"enableAutoRecovery" = $true
+			}
+		} | ConvertTo-Json -Depth 10
+		Set-Content -Path $pbipFilePath -Value $pbipJSON
+	}
+
+
 	$headers = Get-FabricHeaders
 	# Get the name of the Workspace and rename the folder to the Workspace name
 	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/admin/workspaces/$workspaceId" -Method GET -Headers $headers).name
