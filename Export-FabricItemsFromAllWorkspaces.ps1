@@ -253,15 +253,16 @@ $workspaceIds | ForEach-Object {
 			$partitionCount = ([regex]::Matches($tmdlContent, "partition ")).Count
 			$partitionCounts += $partitionCount
 		}
-		if (!$partitionCounts -gt 1) {
+		if (!($partitionCounts -gt 1)) {
 			$pbipFileName = $_.Name -replace '\.SemanticModel', '.pbip'
 			$pbipFilePath = Join-Path -Path $currentDirectory -ChildPath $pbipFileName
+			$dummyReportName = $_.Name -replace '\.SemanticModel', '.Report'
 			$pbipJSON = @{
 				"version" = "1.0"
 				"artifacts" = @(
 					@{
-						"semanticModel" = @{
-							"path" = $_.Name
+						"report" = @{
+							"path" = $dummyReportName
 						}
 					}
 				)
@@ -270,7 +271,7 @@ $workspaceIds | ForEach-Object {
 			Remove-Item -Path (Join-Path -Path $semanticModelPath -ChildPath 'item.metadata.json') -Force -ErrorAction SilentlyContinue
 			
 			# Create a dummy Report to allow the PBIP file to be opened in Power BI Desktop
-			$dummyReportFolder = Join-Path -Path $currentDirectory -ChildPath ($_.Name -replace '\.SemanticModel', '.Report')
+			$dummyReportFolder = Join-Path -Path $currentDirectory -ChildPath $dummyReportName
 			New-Item -Path $dummyReportFolder -ItemType Directory -Force | Out-Null
 			$dummyReportFilePath = Join-Path -Path $dummyReportFolder -ChildPath 'definition.pbir'
 			$dummyReportJSON = @{
