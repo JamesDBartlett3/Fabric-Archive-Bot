@@ -243,7 +243,7 @@ $workspaceIds | ForEach-Object {
 	}
 
 	# Loop through all Thin Semantic Models, counting the number of partitions in each TMDL file within the model.
-	# If all TMDL file within the model have only one partition, then create a PBIP file.
+	# If all TMDL files within the model have only one partition, then create a PBIP file.
 	$thinSemanticModels | ForEach-Object {
 		$semanticModelPath = $_.FullName
 		$tmdlFiles = Get-ChildItem -Path $semanticModelPath -Filter '*.tmdl' -Recurse -File
@@ -253,9 +253,9 @@ $workspaceIds | ForEach-Object {
 			$partitionCount = ([regex]::Matches($tmdlContent, "partition ")).Count
 			$partitionCounts += $partitionCount
 		}
-		$pbipFileName = $_.Name -replace '\.SemanticModel', '.pbip'
-		$pbipFilePath = Join-Path -Path $currentDirectory -ChildPath $pbipFileName
 		if (!$partitionCounts -gt 1) {
+			$pbipFileName = $_.Name -replace '\.SemanticModel', '.pbip'
+			$pbipFilePath = Join-Path -Path $currentDirectory -ChildPath $pbipFileName
 			$pbipJSON = @{
 				"version" = "1.0"
 				"artifacts" = @(
@@ -267,21 +267,23 @@ $workspaceIds | ForEach-Object {
 				)
 			} | ConvertTo-Json -Depth 10
 			Set-Content -Path $pbipFilePath -Value $pbipJSON
-		}
-		# Create a dummy Report to allow the PBIP file to be opened in Power BI Desktop
-		$dummyReportFolder = Join-Path -Path $currentDirectory -ChildPath ($_.Name -replace '\.SemanticModel', '.Report')
-		New-Item -Path $dummyReportFolder -ItemType Directory -Force | Out-Null
-		$dummyReportFilePath = Join-Path -Path $dummyReportFolder -ChildPath 'definition.pbir'
-		$dummyReportJSON = @{
-			"version" = "4.0"
-			"datasetReference" = @{
-				"byPath" = @{
-					"path" = "../$($_.Name)"
+			Remove-Item -Path (Join-Path -Path $semanticModelPath -ChildPath 'item.metadata.json') -Force -ErrorAction SilentlyContinue
+			
+			# Create a dummy Report to allow the PBIP file to be opened in Power BI Desktop
+			$dummyReportFolder = Join-Path -Path $currentDirectory -ChildPath ($_.Name -replace '\.SemanticModel', '.Report')
+			New-Item -Path $dummyReportFolder -ItemType Directory -Force | Out-Null
+			$dummyReportFilePath = Join-Path -Path $dummyReportFolder -ChildPath 'definition.pbir'
+			$dummyReportJSON = @{
+				"version" = "4.0"
+				"datasetReference" = @{
+					"byPath" = @{
+						"path" = "../$($_.Name)"
+					}
+					"byConnection" = $null
 				}
-				"byConnection" = $null
-			}
-		} | ConvertTo-Json -Depth 10
-		Set-Content -Path $dummyReportFilePath -Value $dummyReportJSON
+			} | ConvertTo-Json -Depth 10
+			Set-Content -Path $dummyReportFilePath -Value $dummyReportJSON
+		}
 	}
 
 
