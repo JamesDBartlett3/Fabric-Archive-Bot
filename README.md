@@ -23,11 +23,11 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 - ~~**Corruption of embedded PNG image files**: This script leverages the `Export-FabricItems` function from [@RuiRomano](https://github.com/RuiRomano)'s `FabricPS-PBIP` module to export items like reports and semantic models from Microsoft Fabric. Currently, there is a bug that causes PNG image files embedded in reports (e.g. scrims, company logos, etc.) to become corrupted during the export process. [I reported this issue](https://github.com/microsoft/Analysis-Services/issues/266) in the `Analysis-Services` repo where the `FabricPS-PBIP` module is published, and [Rui is now looking into whether the bug is in his module or the underlying Fabric REST API](https://github.com/microsoft/Analysis-Services/issues/266#issuecomment-2182591274). I will update this section when I have more information.~~
 
 ## Usage
-1. Clone this repository to your local machine or cloud environment.
+1. Clone this repository to your local environment.
 2. Open the `Config.json` file in a text editor and fill in the required values for your Service Principal.
 3. Open the `IgnoreList.json` file in a text editor and fill in the items you want to ignore.
 4. Open a PowerShell terminal and navigate to the directory where you cloned this repository.
-5. Run the following command to export all reports and semantic models from all workspaces in your Power BI/Fabric tenant to the specified output directory:
+5. Run the following command to export all supported Fabric items from all workspaces in your Power BI/Fabric tenant:
 ```powershell
 .\Export-FabricItemsFromAllWorkspaces.ps1
 ```
