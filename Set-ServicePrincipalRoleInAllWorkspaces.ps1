@@ -61,7 +61,7 @@ function Add-ServicePrincipalToWorkspace {
     $Headers
   )
 
-  $url = "$baseUrl/$workspaceId/users"
+  $url = "$baseUrl/$WorkspaceId/users"
 
   $body = @{
     identifier           = $ObjectId
@@ -94,10 +94,12 @@ foreach ($workspace in $workspaces) {
   if ($Action -eq 'Add') {
     Write-Host "Adding Service Principal to workspace $workspace..."
     Add-ServicePrincipalToWorkspace -WorkspaceId $workspace -ObjectId $ServicePrincipalObjectId -Role $Role -Headers $headers 
-  } elseif ($Action -eq 'Remove') {
+  }
+  elseif ($Action -eq 'Remove') {
     Write-Host "Removing Service Principal from workspace $workspace..."
     Remove-ServicePrincipalFromWorkspace -WorkspaceId $workspace -ObjectId $ServicePrincipalObjectId -Headers $headers
-  } else {
+  }
+  else {
     Write-Error "Invalid action: $Action. Exiting..."
     exit
   }
