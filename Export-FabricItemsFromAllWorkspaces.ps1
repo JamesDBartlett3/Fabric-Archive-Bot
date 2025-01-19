@@ -9,12 +9,12 @@
   A PSCustomObject containing the configuration settings for the script. The default value is the contents of the Config.json file in the same directory as the script.
   The object should have the following structure:
   @{
-  ServicePrincipal = @{
-    TenantId = 'YOUR_TENANT_ID'
-    AppId = 'YOUR_APP_ID'
+    ServicePrincipal = @{
+      TenantId = 'YOUR_TENANT_ID'
+      AppId = 'YOUR_APP_ID'
       ObjectId = 'YOUR_APP_OBJECT_ID'
-    AppSecret = 'YOUR_APP_SECRET'
-  }
+      AppSecret = 'YOUR_APP_SECRET'
+    }
   }
 
 .PARAMETER IgnoreObject
