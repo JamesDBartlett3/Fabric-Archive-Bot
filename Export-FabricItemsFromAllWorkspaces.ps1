@@ -87,6 +87,12 @@ Param(
   [Parameter()][switch]$ConvertToTmdl
 )
 
+# Requires PowerShell 7 or later
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+  Write-Error 'This script requires PowerShell 7 or later.'
+  Exit
+}
+
 # If NuGet package provider is not installed, install it
 if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
   Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
@@ -95,6 +101,11 @@ if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
 # If Az.Account module is not installed, install it
 if (-not (Get-Module -Name Az.Accounts -ListAvailable)) {
   Install-Module -Name Az.Accounts -Scope CurrentUser
+}
+
+# If Az.Resources module is not installed, install it
+if (-not (Get-Module -Name Az.Resources -ListAvailable)) {
+  Install-Module -Name Az.Resources -Scope CurrentUser
 }
 
 # Declare $moduleName variable
@@ -125,7 +136,6 @@ Import-Module $localModulePath -ErrorAction SilentlyContinue
 [string]$tenantId = $ConfigObject.ServicePrincipal.TenantId
 [string]$servicePrincipalId = $ConfigObject.ServicePrincipal.AppId
 [string]$servicePrincipalSecret = $ConfigObject.ServicePrincipal.AppSecret
-[string]$servicePrincipalObjectId = $ConfigObject.ServicePrincipal.ObjectId
 
 # Instantiate $useServicePrincipal variable as $true if Service Principal credentials are provided in the $ConfigObject parameter
 [bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret -and $servicePrincipalObjectId
@@ -181,6 +191,9 @@ do {
   } | Select-Object -ExpandProperty id
   $skip += $batchSize
 } while ($batch.value.Count -eq $batchSize)
+
+# Get the ObjectId of the Service Principal
+[string]$servicePrincipalObjectId = (Get-AzADServicePrincipal -ApplicationId $servicePrincipalId).Id
 
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
