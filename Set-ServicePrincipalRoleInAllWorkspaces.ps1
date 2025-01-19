@@ -125,7 +125,7 @@ function Add-ServicePrincipalToWorkspace {
 	Invoke-RestMethod -Uri $url -Headers $Headers -Method POST -Body $body
 }
 
-# Function to delete Service Principal from a workspace
+# Function to remove Service Principal from a workspace
 function Remove-ServicePrincipalFromWorkspace {
 	param (
 		[string]$WorkspaceId,
@@ -141,7 +141,7 @@ function Remove-ServicePrincipalFromWorkspace {
 # Get all workspaces
 $workspaces = Get-AllWorkspaces -Headers $headers -WorkspaceFilter $WorkspaceFilter
 
-# Add Service Principal to each workspace
+# Perform the selected action on each workspace
 # TODO: Add rate limit handling
 foreach ($workspace in $workspaces) {
 	if ($Action -eq 'Add') {
