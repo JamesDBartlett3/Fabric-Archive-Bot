@@ -12,6 +12,7 @@
     ServicePrincipal = @{
       TenantId = 'YOUR_TENANT_ID'
       AppId = 'YOUR_APP_ID'
+			ObjectId = 'YOUR_APP_OBJECT_ID'
       AppSecret = 'YOUR_APP_SECRET'
     }
   }
@@ -155,8 +156,7 @@ Function Get-FabricHeaders {
 		Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
 	} else {
 		Set-FabricAuthToken
-	}
-	return @{
+	} return @{
 		Authorization = "Bearer $(Get-FabricAuthToken)"
 	}
 }
@@ -215,7 +215,7 @@ Function Measure-FolderDepth($path) {
 $oldFolders = Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | Where-Object { $_.CreationTime -lt $RetentionCutoffDate }
 
 # Remove old folders deeper than the target folder depth + 2
-foreach($oldFolder in $oldFolders) {
+foreach ($oldFolder in $oldFolders) {
 	[int]$folderDepth = Measure-FolderDepth $oldFolder
 	if ($folderDepth -gt $targetFolderDepth + 2) {
 		Remove-Item -Path $oldFolder -Recurse -Force -ErrorAction SilentlyContinue
