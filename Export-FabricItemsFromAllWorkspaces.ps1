@@ -21,8 +21,8 @@
   A PSCustomObject containing the names of Workspaces and Reports to ignore. The default value is the contents of the IgnoreList.json file in the same directory as the script.
   The object should have the following structure:
   @{
-  IgnoreWorkspaces = @('Workspace1', 'Workspace2')
-  IgnoreReports = @('Report1', 'Report2')
+    IgnoreWorkspaces = @('Workspace1', 'Workspace2')
+    IgnoreReports = @('Report1', 'Report2')
   }
 
 .PARAMETER WorkspaceFilter
