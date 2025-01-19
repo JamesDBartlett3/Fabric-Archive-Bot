@@ -44,6 +44,7 @@
   If specified, the script will download the latest version of the FabricPS-PBIP.psm1 module from the Analysis-Services repository.
 
 .PARAMETER ConvertToTmdl
+  Note: The Fabric REST API now exports semantic models to TMDL format by default, so this parameter is deprecated.
   If specified, the script will convert model.bim files into 'definition' TMDL folders.
 
 .INPUTS
@@ -69,6 +70,9 @@
 
 .LINK
   [Follow the author on BlueSky](https://bsky.app/profile/jamesdbartlett3.bsky.social)
+
+.LINK
+  [Powered by the FabricPS-PBIP PowerShell module](https://github.com/microsoft/Analysis-Services/tree/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1)
 
 #>
 
