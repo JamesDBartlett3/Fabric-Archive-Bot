@@ -11,7 +11,6 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 - **Secure**: Uses Entra ID authentication to access the Fabric REST APIs, so you don't need to store your username and password in the script.
 
 ## Current Issues & Limitations
-- **Corruption of embedded PNG image files**: This script leverages the `Export-FabricItems` function from [@RuiRomano](https://github.com/RuiRomano)'s `FabricPS-PBIP` module to export items like reports and semantic models from Microsoft Fabric. Currently, there is a bug that causes PNG image files embedded in reports (e.g. scrims, company logos, etc.) to become corrupted during the export process. [I reported this issue](https://github.com/microsoft/Analysis-Services/issues/266) in the `Analysis-Services` repo where the `FabricPS-PBIP` module is published, and [Rui is now looking into whether the bug is in his module or the underlying Fabric REST API](https://github.com/microsoft/Analysis-Services/issues/266#issuecomment-2182591274). I will update this section when I have more information.
 - **Windows Machine**: Runs on Windows in a local or cloud environment (physical or virtual machine), but does not currently support running as an Azure Function (a.k.a "serverless"). This feature is planned for a future release.
 - **Local Storage**: Exports items to a local directory, but does not currently support exporting to Azure Blob Storage, Amazon S3, Google Cloud Storage, etc. This feature is planned for a future release.
 - **Item Types**: Can only export reports and semantic models (formerly "datasets"). This is [a limitation of the Microsoft Fabric REST APIs](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/definitions/item-definition-overview), and Microsoft has not yet made it clear if/when they will add support for exporting other item types.
@@ -21,6 +20,22 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 - **Item Filtering**: Currently, the script will ignore all workspaces in the `IgnoreWorkspaces` list (see `IgnoreList.json`), but `IgnoreReports` and `IgnoreSemanticModels` are not currently supported. I am planning to work on adding these capabilities in a future release, but they're not on the roadmap yet, so if you would like to see them added sooner, please let me know by creating [an issue](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/issues/new/choose) or [a pull request](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/fork).
 - **Incremental Backups**: Always exports all supported items from all workspaces which match the `WorkspaceFilter` parameter and are not in the `IgnoreWorkspaces` list (see `IgnoreList.json`). If you have a large tenant, this could take a long time and consume a lot of storage space. Incremental backups are theoretically possible, but they would require a much more complex solution, so this feature is not currently on the roadmap. However, if you would like to see this feature added, please let me know by creating [an issue](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/issues/new/choose) or [a pull request](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/fork).
 - **Multiple Tenants**: Support for exporting items from multiple tenants is not currently supported or on the roadmap, but if you would like to see this feature added, please let me know by creating [an issue](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/issues/new/choose) or [a pull request](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/fork).
+- ~~**Corruption of embedded PNG image files**: This script leverages the `Export-FabricItems` function from [@RuiRomano](https://github.com/RuiRomano)'s `FabricPS-PBIP` module to export items like reports and semantic models from Microsoft Fabric. Currently, there is a bug that causes PNG image files embedded in reports (e.g. scrims, company logos, etc.) to become corrupted during the export process. [I reported this issue](https://github.com/microsoft/Analysis-Services/issues/266) in the `Analysis-Services` repo where the `FabricPS-PBIP` module is published, and [Rui is now looking into whether the bug is in his module or the underlying Fabric REST API](https://github.com/microsoft/Analysis-Services/issues/266#issuecomment-2182591274). I will update this section when I have more information.~~
+
+## Usage
+1. Clone this repository to your local machine or cloud environment.
+2. Open the `Config.json` file in a text editor and fill in the required values (see the comments in the file for more information).
+3. Open the `IgnoreList.json` file in a text editor and fill in the workspaces you want to ignore (see the comments in the file for more information).
+4. Open a PowerShell terminal and navigate to the directory where you cloned this repository.
+5. Run the following command to grant your Service Principal the necessary permissions in all workspaces:
+```powershell
+.\Set-ServicePrincipalRoleInAllWorkspaces.ps1 -Add -Role Member
+```
+6. Run the following command to export all reports and semantic models from all workspaces in your Power BI/Fabric tenant to the specified output directory:
+```powershell
+.\Export-FabricItemsFromAllWorkspaces.ps1 -TargetFolder "C:\Path\To\Output\Directory"
+```
+
 
 ## Notes
 If you clone this repo, you can run these commands to prevent your changes to the `Config.json` and `IgnoreList.json` files from being tracked in Git (so you don't accidentally commit your sensitive information):
