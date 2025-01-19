@@ -130,6 +130,8 @@ Import-Module $localModulePath -ErrorAction SilentlyContinue
 [array]$ignoreWorkspaces = $IgnoreObject.IgnoreWorkspaces
 # TODO: Implement IgnoreReports
 # [array]$ignoreReports = $IgnoreObject.IgnoreReports
+# TODO: Implement IgnoreSemanticModels
+# [array]$ignoreSemanticModels = $IgnoreObject.IgnoreSemanticModels
 
 # Get configuration settings from the $ConfigObject parameter
 [string]$tenantId = $ConfigObject.ServicePrincipal.TenantId
