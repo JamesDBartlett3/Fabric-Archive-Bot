@@ -1,5 +1,6 @@
 {
   "IgnoreWorkspaces": [
+    "Admin monitoring",
     "Apps Catalog on Microsoft AppSource",
     "Azure DevOps Dashboard",
     "COVID-19 Global Report",
@@ -18,11 +19,15 @@
   ],
   "IgnoreReports": [
     "Dashboard Usage Metrics Report",
-    "Workspace Usage Metrics Report",
+    "Feature Usage and Adoption",
+    "Purview Hub",
     "Report Usage Metrics Report",
-    "Usage Metrics Report"
+    "Usage Metrics Report",
+    "Workspace Usage Metrics Report"
   ],
   "IgnoreSemanticModels": [
+    "Feature Usage and Adoption",
+    "Purview Hub",
     "Report Usage Metrics Model",
     "Usage Metrics Report"
   ]
