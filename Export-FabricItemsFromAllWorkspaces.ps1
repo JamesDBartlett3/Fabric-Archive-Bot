@@ -81,7 +81,7 @@ Param(
   [Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
   [Parameter()][string]$WorkspaceFilter = '(type eq ''Workspace'') and (state eq ''Active'')',
   [Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
-  [Parameter()][datetime]$RetentionCutoffDate = (Get-Date).Date.AddDays(-30),
+  [Parameter()][datetime]$RetentionCutoffDate = ((Get-Date).Date.AddDays(-30)),
   [Parameter()][string]$TargetFolder = (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces'),
   [Parameter()][switch]$GetLatestModule,
   [Parameter()][switch]$ConvertToTmdl
