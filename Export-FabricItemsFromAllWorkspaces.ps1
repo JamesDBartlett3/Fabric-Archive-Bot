@@ -34,8 +34,8 @@
 .PARAMETER RetentionCutoffDate
   The cutoff date for retention of exported items. Default value is 12:00AM on the current date minus 30 days. 
   The datatype is [datetime], so the input must be expressed as either:
-    - A datetime-formatted string (e.g. '2024-01-01', '2024-01-01T00:00:00', etc.)
-    - A [datetime] object (e.g. (Get-Date).Date.AddDays(-30), (Get-Date).Date.AddYears(-1), etc.)
+  - A datetime-formatted string (e.g. '2024-01-01', '2024-01-01T00:00:00', etc.)
+  - A [datetime] object (e.g. (Get-Date).Date.AddDays(-30), (Get-Date).Date.AddYears(-1), etc.)
 
 .PARAMETER TargetFolder
   The path to the folder where the items will be exported. If not provided, the items will be exported to a folder named 'Workspaces\YYYY\MM\DD' in the same directory as the script.
@@ -121,9 +121,10 @@ Import-Module $localModulePath -ErrorAction SilentlyContinue
 [string]$tenantId = $ConfigObject.ServicePrincipal.TenantId
 [string]$servicePrincipalId = $ConfigObject.ServicePrincipal.AppId
 [string]$servicePrincipalSecret = $ConfigObject.ServicePrincipal.AppSecret
+[string]$servicePrincipalObjectId = $ConfigObject.ServicePrincipal.ObjectId
 
 # Instantiate $useServicePrincipal variable as $true if Service Principal credentials are provided in the $ConfigObject parameter
-[bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret
+[bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret -and $servicePrincipalObjectId
 
 # Get current date and create a folder hierarchy for the year, month, and day
 [datetime]$date = Get-Date
@@ -165,7 +166,7 @@ $headers = Get-FabricHeaders
 
 # Get a list of all active Workspaces in batches of 5000 until all workspaces have been fetched
 # TODO: Replace Power BI API call with Fabric API call: https://learn.microsoft.com/en-us/rest/api/fabric/admin/workspaces/list-workspaces?tabs=HTTP
-[guid[]]$workspaceIds = @()
+[string[]]$workspaceIds = @()
 [int]$skip = 0
 [int]$batchSize = 5000
 do {
@@ -179,9 +180,12 @@ do {
 
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
-  [guid]$workspaceId = $_
+  [string]$workspaceId = $_
+  # Grant the Service Principal access to the Workspace if it is not already a member
+  [pscustomobject]$permissions = @{ principal = @{ id = $servicePrincipalObjectId; type = "ServicePrincipal" }; role = "Member" }
+  Set-FabricWorkspacePermissions -WorkspaceId $workspaceId -Permissions $permissions
   # Export all items from the Workspace to the target folder
-  Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
+  Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -Filter { $_.type -in @("Report", "SemanticModel", "Notebook", "SparkJobDefinition") } -ErrorAction SilentlyContinue
   # If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with Microsoft.AnalysisServices.Tabular
   if ($ConvertToTmdl) {
     $bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
