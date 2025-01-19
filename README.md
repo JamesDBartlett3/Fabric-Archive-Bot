@@ -24,14 +24,14 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 
 ## Usage
 1. Clone this repository to your local machine or cloud environment.
-2. Open the `Config.json` file in a text editor and fill in the required values (see the comments in the file for more information).
-3. Open the `IgnoreList.json` file in a text editor and fill in the workspaces you want to ignore (see the comments in the file for more information).
+2. Open the `Config.json` file in a text editor and fill in the required values for your Service Principal.
+3. Open the `IgnoreList.json` file in a text editor and fill in the items you want to ignore.
 4. Open a PowerShell terminal and navigate to the directory where you cloned this repository.
 5. Run the following command to grant your Service Principal the necessary permissions in all workspaces:
 ```powershell
 .\Set-ServicePrincipalRoleInAllWorkspaces.ps1 -Add -Role Member
 ```
-6. Run the following command to export all reports and semantic models from all workspaces in your Power BI/Fabric tenant to the specified output directory:
+1. Run the following command to export all reports and semantic models from all workspaces in your Power BI/Fabric tenant to the specified output directory:
 ```powershell
 .\Export-FabricItemsFromAllWorkspaces.ps1 -TargetFolder "C:\Path\To\Output\Directory"
 ```
