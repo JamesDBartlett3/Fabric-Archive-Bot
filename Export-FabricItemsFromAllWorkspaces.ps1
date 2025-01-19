@@ -9,33 +9,33 @@
   A PSCustomObject containing the configuration settings for the script. The default value is the contents of the Config.json file in the same directory as the script.
   The object should have the following structure:
   @{
-    ServicePrincipal = @{
-      TenantId = 'YOUR_TENANT_ID'
-      AppId = 'YOUR_APP_ID'
-			ObjectId = 'YOUR_APP_OBJECT_ID'
-      AppSecret = 'YOUR_APP_SECRET'
-    }
+  ServicePrincipal = @{
+    TenantId = 'YOUR_TENANT_ID'
+    AppId = 'YOUR_APP_ID'
+      ObjectId = 'YOUR_APP_OBJECT_ID'
+    AppSecret = 'YOUR_APP_SECRET'
+  }
   }
 
 .PARAMETER IgnoreObject
   A PSCustomObject containing the names of Workspaces and Reports to ignore. The default value is the contents of the IgnoreList.json file in the same directory as the script.
   The object should have the following structure:
   @{
-    IgnoreWorkspaces = @('Workspace1', 'Workspace2')
-    IgnoreReports = @('Report1', 'Report2')
+  IgnoreWorkspaces = @('Workspace1', 'Workspace2')
+  IgnoreReports = @('Report1', 'Report2')
   }
 
 .PARAMETER WorkspaceFilter
-	The filter expression for which Workspaces to export. Default value is '(type eq ''Workspace'') and (state eq ''Active'')'.
+  The filter expression for which Workspaces to export. Default value is '(type eq ''Workspace'') and (state eq ''Active'')'.
 
 .PARAMETER ModuleUrl
   The URL of the FabricPS-PBIP.psm1 module. Default value is 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'.
 
 .PARAMETER RetentionCutoffDate
-	The cutoff date for retention of exported items. Default value is 12:00AM on the current date minus 30 days. 
-	The datatype is [datetime], so the input must be expressed as either:
-		- A datetime-formatted string (e.g. '2024-01-01', '2024-01-01T00:00:00', etc.)
-		- A [datetime] object (e.g. (Get-Date).Date.AddDays(-30), (Get-Date).Date.AddYears(-1), etc.)
+  The cutoff date for retention of exported items. Default value is 12:00AM on the current date minus 30 days. 
+  The datatype is [datetime], so the input must be expressed as either:
+    - A datetime-formatted string (e.g. '2024-01-01', '2024-01-01T00:00:00', etc.)
+    - A [datetime] object (e.g. (Get-Date).Date.AddDays(-30), (Get-Date).Date.AddYears(-1), etc.)
 
 .PARAMETER TargetFolder
   The path to the folder where the items will be exported. If not provided, the items will be exported to a folder named 'Workspaces\YYYY\MM\DD' in the same directory as the script.
@@ -44,7 +44,7 @@
   If specified, the script will download the latest version of the FabricPS-PBIP.psm1 module from the Analysis-Services repository.
 
 .PARAMETER ConvertToTmdl
-  If specified, the script will convert model.bim files into 'definition' TMDL folder using pbi-tools.
+  If specified, the script will convert model.bim files into 'definition' TMDL folders.
 
 .INPUTS
   None - Pipeline input is not accepted.
@@ -59,7 +59,7 @@
   [Follow the author's blog](https://datavolume.xyz)
 
 .LINK
-	[Follow the author on GitHub](https://github.com/JamesDBartlett3)
+  [Follow the author on GitHub](https://github.com/JamesDBartlett3)
 
 .LINK
   [Follow the author on LinkedIn](https://www.linkedin.com/in/jamesdbartlett3/)
@@ -73,24 +73,24 @@
 #>
 
 Param(
-	[Parameter()][PSCustomObject]$ConfigObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Config.json') | ConvertFrom-Json),
-	[Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
-	[Parameter()][string]$WorkspaceFilter = '(type eq ''Workspace'') and (state eq ''Active'')',
-	[Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
-	[Parameter()][datetime]$RetentionCutoffDate = (Get-Date).Date.AddDays(-30),
-	[Parameter()][string]$TargetFolder = (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces'),
-	[Parameter()][switch]$GetLatestModule,
-	[Parameter()][switch]$ConvertToTmdl
+  [Parameter()][PSCustomObject]$ConfigObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'Config.json') | ConvertFrom-Json),
+  [Parameter()][PSCustomObject]$IgnoreObject = (Get-Content -Path (Join-Path -Path $PSScriptRoot -ChildPath 'IgnoreList.json') | ConvertFrom-Json),
+  [Parameter()][string]$WorkspaceFilter = '(type eq ''Workspace'') and (state eq ''Active'')',
+  [Parameter()][string]$ModuleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1',
+  [Parameter()][datetime]$RetentionCutoffDate = (Get-Date).Date.AddDays(-30),
+  [Parameter()][string]$TargetFolder = (Join-Path -Path $PSScriptRoot -ChildPath 'Workspaces'),
+  [Parameter()][switch]$GetLatestModule,
+  [Parameter()][switch]$ConvertToTmdl
 )
 
 # If NuGet package provider is not installed, install it
 if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
-	Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
+  Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
 }
 
 # If Az.Account module is not installed, install it
 if (-not (Get-Module -Name Az.Accounts -ListAvailable)) {
-	Install-Module -Name Az.Accounts -Scope CurrentUser
+  Install-Module -Name Az.Accounts -Scope CurrentUser
 }
 
 # Declare $moduleName variable
@@ -101,9 +101,9 @@ if (-not (Get-Module -Name Az.Accounts -ListAvailable)) {
 
 # Download latest FabricPS-PBIP.psm1 from Analysis-Services repository if it does not exist, or if $GetLatestModule is specified
 if (-not (Test-Path -Path $localModulePath) -or ($GetLatestModule)) {
-	Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
-	Remove-Item $localModulePath -ErrorAction SilentlyContinue
-	Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
+  Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
+  Remove-Item $localModulePath -ErrorAction SilentlyContinue
+  Invoke-WebRequest -Uri $ModuleUrl -OutFile $localModulePath
 }
 
 # Unblock the downloaded FabricPS-PBIP.psm1 file so it can be imported
@@ -139,7 +139,7 @@ $TargetFolder = Join-Path -Path $TargetFolder -ChildPath ($year + $sep + $month 
 
 # Create the target folder if it does not exist
 if (-not (Test-Path -Path $TargetFolder)) {
-	New-Item -Path $TargetFolder -ItemType Directory -Force | Out-Null
+  New-Item -Path $TargetFolder -ItemType Directory -Force | Out-Null
 }
 
 # Initialize the $loopCount variable
@@ -149,16 +149,16 @@ if (-not (Test-Path -Path $TargetFolder)) {
 # If $useServicePrincipal is $true, use the Service Principal credentials to get the headers
 # Otherwise, use the current user's credentials
 Function Get-FabricHeaders {
-	if ($useServicePrincipal) {
-		if ($loopCount -eq 0) {
-			Logout-AzAccount | Out-Null
-		}
-		Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
-	} else {
-		Set-FabricAuthToken
-	} return @{
-		Authorization = "Bearer $(Get-FabricAuthToken)"
-	}
+  if ($useServicePrincipal) {
+    if ($loopCount -eq 0) {
+      Logout-AzAccount | Out-Null
+    }
+    Set-FabricAuthToken -TenantId $tenantId -servicePrincipalId $servicePrincipalId -servicePrincipalSecret $servicePrincipalSecret
+  } else {
+    Set-FabricAuthToken
+  } return @{
+    Authorization = "Bearer $(Get-FabricAuthToken)"
+  }
 }
 
 $headers = Get-FabricHeaders
@@ -169,43 +169,43 @@ $headers = Get-FabricHeaders
 [int]$skip = 0
 [int]$batchSize = 5000
 do {
-	[string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $WorkspaceFilter, $batchSize, $skip
-	$batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
-	$workspaceIds += $batch.value | Where-Object {
-		$_.name -notin $ignoreWorkspaces
-	} | Select-Object -ExpandProperty id
-	$skip += $batchSize
+  [string]$batchUri = 'https://api.powerbi.com/v1.0/myorg/admin/groups?$filter={0}&$top={1}&$skip={2}' -f $WorkspaceFilter, $batchSize, $skip
+  $batch = Invoke-RestMethod -Uri $batchUri -Method GET -Headers $headers
+  $workspaceIds += $batch.value | Where-Object {
+    $_.name -notin $ignoreWorkspaces
+  } | Select-Object -ExpandProperty id
+  $skip += $batchSize
 } while ($batch.value.Count -eq $batchSize)
 
 # Export contents of each Workspace to the target folder
 $workspaceIds | ForEach-Object {
-	[guid]$workspaceId = $_
-	# Export all items from the Workspace to the target folder
-	Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
-	# If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with Microsoft.AnalysisServices.Tabular
-	if ($ConvertToTmdl) {
-		$bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
-		foreach ($bimFile in $bimFiles) {
-			$tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
-			$modelText = Get-Content $bimFile.FullName
-			$database = [Microsoft.AnalysisServices.Tabular.JsonSerializer]::DeserializeDatabase($modelText, $null, [Microsoft.AnalysisServices.CompatibilityMode]::PowerBI)
-			[Microsoft.AnalysisServices.Tabular.TmdlSerializer]::SerializeDatabaseToFolder($database, $tmdlFolder)
-		}
-	}
-	$headers = Get-FabricHeaders
-	# Get the name of the Workspace and rename the folder to the Workspace name
-	[string]$workspaceName = (Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/admin/workspaces/$workspaceId" -Method GET -Headers $headers).name
-	Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
-	Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
-	$loopCount += 1
+  [guid]$workspaceId = $_
+  # Export all items from the Workspace to the target folder
+  Export-FabricItems -WorkspaceId $workspaceId -Path $TargetFolder -ErrorAction SilentlyContinue
+  # If $ConvertToTmdl is specified, convert the model.bim file to a .tmdl folder with Microsoft.AnalysisServices.Tabular
+  if ($ConvertToTmdl) {
+    $bimFiles = Get-ChildItem -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -Filter '*.bim' -Recurse -File
+    foreach ($bimFile in $bimFiles) {
+      $tmdlFolder = Join-Path -Path $bimFile.DirectoryName -ChildPath 'definition'
+      $modelText = Get-Content $bimFile.FullName
+      $database = [Microsoft.AnalysisServices.Tabular.JsonSerializer]::DeserializeDatabase($modelText, $null, [Microsoft.AnalysisServices.CompatibilityMode]::PowerBI)
+      [Microsoft.AnalysisServices.Tabular.TmdlSerializer]::SerializeDatabaseToFolder($database, $tmdlFolder)
+    }
+  }
+  $headers = Get-FabricHeaders
+  # Get the name of the Workspace and rename the folder to the Workspace name
+  [string]$workspaceName = (Invoke-RestMethod -Uri "https://api.fabric.microsoft.com/v1/admin/workspaces/$workspaceId" -Method GET -Headers $headers).name
+  Remove-Item -Recurse (Join-Path -Path $TargetFolder -ChildPath $workspaceName) -Force -ErrorAction SilentlyContinue
+  Rename-Item -Path (Join-Path -Path $TargetFolder -ChildPath $workspaceId) -NewName $workspaceName -Force -ErrorAction SilentlyContinue
+  $loopCount += 1
 }
 
 # Measure the hierarchy depth of a folder
 Function Measure-FolderDepth($path) {
-	$absolutePath = Resolve-Path $path
-	$parts = Split-Path $absolutePath -NoQualifier
-	$folderDepth = $parts.Split($sep).Count
-	return $folderDepth
+  $absolutePath = Resolve-Path $path
+  $parts = Split-Path $absolutePath -NoQualifier
+  $folderDepth = $parts.Split($sep).Count
+  return $folderDepth
 }
 
 # Measure the depth of the target folder
@@ -216,10 +216,10 @@ $oldFolders = Get-ChildItem -Path $TargetFolder -Directory -Recurse -Depth 2 | W
 
 # Remove old folders deeper than the target folder depth + 2
 foreach ($oldFolder in $oldFolders) {
-	[int]$folderDepth = Measure-FolderDepth $oldFolder
-	if ($folderDepth -gt $targetFolderDepth + 2) {
-		Remove-Item -Path $oldFolder -Recurse -Force -ErrorAction SilentlyContinue
-	}
+  [int]$folderDepth = Measure-FolderDepth $oldFolder
+  if ($folderDepth -gt $targetFolderDepth + 2) {
+    Remove-Item -Path $oldFolder -Recurse -Force -ErrorAction SilentlyContinue
+  }
 }
 
 # Remove empty folders
