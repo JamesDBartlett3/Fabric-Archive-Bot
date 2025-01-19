@@ -12,7 +12,6 @@
     ServicePrincipal = @{
       TenantId = 'YOUR_TENANT_ID'
       AppId = 'YOUR_APP_ID'
-      ObjectId = 'YOUR_APP_OBJECT_ID'
       AppSecret = 'YOUR_APP_SECRET'
     }
   }
@@ -138,7 +137,7 @@ Import-Module $localModulePath -ErrorAction SilentlyContinue
 [string]$servicePrincipalSecret = $ConfigObject.ServicePrincipal.AppSecret
 
 # Instantiate $useServicePrincipal variable as $true if Service Principal credentials are provided in the $ConfigObject parameter
-[bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret -and $servicePrincipalObjectId
+[bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret
 
 # Get current date and create a folder hierarchy for the year, month, and day
 [datetime]$date = Get-Date
