@@ -30,9 +30,12 @@
 
 - Where to clone or download the repository.
 - Service Principal in Azure.
-  - 
-- Show the Security Group in Azure.
-- Show the Fabric admin portal.
+  - Application ID
+  - Client Secret
+- Security Group in Azure.
+- Fabric admin portal.
+  - Grant the Security Group access to the read-only admin APIs.
+  - Show where to find the Tenant ID.
 - Open `Export-FabricItemsFromAllWorkspaces.ps1` briefly, highlighting its parameters and their descriptions.
 - Open `Config.json`, show where to place Tenant ID, App ID, and App Secret for the Service Principal.
 - Open `IgnoreList.json`, show, and mention that only workspaces are supported at the moment.
@@ -66,6 +69,6 @@ Recap the process:
   - Create Service Principal
   - Add it to a new Entra ID Security Group
   - Grant that Security Group access to the read-only admin APIs in the Fabric admin portal.
-- Configure JSON or set environment variable with TenantId, AppId, and AppSecret.
+- Configure JSON or set environment variable with AppId, AppSecret, and TenantId.
 - Run the script manually or schedule it for automatic exports.
 - Encourage viewers to contribute feedback and enhancements on GitHub.
