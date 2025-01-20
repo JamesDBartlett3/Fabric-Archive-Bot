@@ -133,12 +133,18 @@ Import-Module $localModulePath -ErrorAction SilentlyContinue
 # TODO: Implement IgnoreSemanticModels
 # [array]$ignoreSemanticModels = $IgnoreObject.IgnoreSemanticModels
 
-# Get configuration settings from the $ConfigObject parameter
+# If FabricArchiveBot_ConfigObject environment variable is set, use it to override the $ConfigObject parameter
+$userEnv = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User)
+if ($userEnv.FabricArchiveBot_ConfigObject) {
+  $ConfigObject = $userEnv.FabricArchiveBot_ConfigObject | ConvertFrom-Json
+}
+
+# Get configuration settings from the $ConfigObject
 [string]$tenantId = $ConfigObject.ServicePrincipal.TenantId
 [string]$servicePrincipalId = $ConfigObject.ServicePrincipal.AppId
 [string]$servicePrincipalSecret = $ConfigObject.ServicePrincipal.AppSecret
 
-# Instantiate $useServicePrincipal variable as $true if Service Principal credentials are provided in the $ConfigObject parameter
+# Instantiate $useServicePrincipal variable as $true if Service Principal credentials are provided in the $ConfigObject
 [bool]$useServicePrincipal = $tenantId -and $servicePrincipalId -and $servicePrincipalSecret
 
 # Get current date and create a folder hierarchy for the year, month, and day
