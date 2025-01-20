@@ -19,7 +19,7 @@
   - Fabric provides REST API endpoints for retrieving and managing resources.
 - JSON (JavaScript Object Notation):
   - The format used by REST APIs to exchange data, commands, and configurations.
-  - Fabric Archive Bot also reads config data (like credentials) from JSON files, such as Config.json.
+  - Fabric Archive Bot also optionally reads its configuration data from JSON files, such as `Config.json`.
 - PowerShell Module:
   - A set of functions that can be loaded into a PowerShell session.
   - Fabric Archive Bot imports several PowerShell Modules (e.g., FabricPS-PBIP) and uses functions from those modules to perform actions
@@ -32,19 +32,23 @@
   - A built-in Windows utility that allows users to schedule tasks to run at specific times or events.
   - You can use the Windows Task Scheduler to run Fabric Archive Bot automatically at regular intervals.
 
-## Setting Up the Script (2:30–5:00)
+## Setting Up Fabric Archive Bot (2:30–5:00)
 
-- Show how to clone or download the repository.
-- Open Export-FabricItemsFromAllWorkspaces.ps1 briefly, highlighting its parameters and their descriptions.
-- Open Config.json, show where to place Tenant ID, App ID, and App Secret for the Azure Service Principal.
-- Open IgnoreList.json, demonstrate how to ignore certain workspaces.
-- Show the `helpers` folder and explain how to use the scripts inside it.
+- Show where to clone or download the repository.
+- Show the Service Principal in Azure.
+- Show the Security Group in Azure.
+- Show the Fabric admin portal.
+- Open `Export-FabricItemsFromAllWorkspaces.ps1` briefly, highlighting its parameters and their descriptions.
+- Open `Config.json`, show where to place Tenant ID, App ID, and App Secret for the Azure Service Principal.
+- Open `IgnoreList.json`, show, and mention that only workspaces are supported at the moment.
+- Show the `helpers` folder and briefly explain what the scripts inside it do.
+  - `Register-FabricArchiveBotScheduledTask.ps1`
+  - `Set-FabricArchiveBotUserEnvironmentVariable.ps1`
 
 ## Running the Script (5:00–7:30)
 
-- Demonstrate a PowerShell session.
 - Explain the script's main flow:
-  - Get configuration data from Config.json or environment variable.
+  - Get configuration data from `Config.json` or environment variable.
   - Authenticate to Fabric
   - Retrieve workspace IDs
   - Loop through workspaces
@@ -55,14 +59,18 @@
 ## Scheduling with Windows Task Scheduler (7:30–9:00)
 
 Demonstrate creating a basic task:
-- Point the “Action” to `pwsh.exe`.
-- Pass script path as the “Argument.”
-- Set daily or weekly triggers for automation.
+- Run `helpers\Register-FabricArchiveBotScheduledTask.ps1`
+- Open Windows Task Scheduler and show the new task.
+- Run the task manually to demonstrate that it works.
 
 ## Conclusion (9:00–10:00)
 
 Recap the process:
-- Configure JSON.
-- Run the script manually.
-- Schedule it for automatic exports.
+- Clone or download the repository.
+- Azure setup
+  - Create Azure Service Principal
+  - Add it to a new Service Principal Security Group
+  - Grant that Security Group access to the read-only admin APIs in the Fabric admin portal.
+- Configure JSON or set environment variable with TenantId, AppId, and AppSecret.
+- Run the script manually or schedule it for automatic exports.
 - Encourage viewers to contribute feedback and enhancements on GitHub.
