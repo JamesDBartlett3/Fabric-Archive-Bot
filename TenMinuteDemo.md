@@ -54,7 +54,7 @@
 ## Scheduling with Windows Task Scheduler (7:30–9:00)
 
 Demonstrate creating a basic task:
-- Point the “Action” to PowerShell.exe.
+- Point the “Action” to `pwsh.exe`.
 - Pass script path as the “Argument.”
 - Set daily or weekly triggers for automation.
 
