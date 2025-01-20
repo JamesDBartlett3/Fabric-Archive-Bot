@@ -5,9 +5,9 @@
 - Greet viewers
 - Introduce self and topic: 
   - “Hi, I’m James Bartlett, and today we’ll be exploring how to automate a daily backup of items from all Fabric workspaces using a free, open-source solution I developed called Fabric Archive Bot.”
-- Mention prerequisites: 
+- Prerequisites: 
   - Intermediate Power BI/Fabric knowledge
-  - Some PowerShell basics
+  - Some PowerShell and Git basics
   - An Azure Service Principal with Power BI Service permissions
   - A Windows machine with PowerShell 7+ and Windows Task Scheduler (or another scheduling tool)
 
@@ -37,7 +37,7 @@
 - Open Export-FabricItemsFromAllWorkspaces.ps1 briefly, highlighting its parameters and their descriptions.
 - Open Config.json, show where to place Tenant ID, App ID, and App Secret for the Azure Service Principal.
 - Open IgnoreList.json, demonstrate how to ignore certain workspaces.
-- Show the helpers folder and explain how to use Set-FabricArchiveBotUserEnvironmentVariable.ps1
+- Show the `helpers` folder and explain how to use Set-FabricArchiveBotUserEnvironmentVariable.ps1
 
 ## Running the Script (5:00–7:30)
 
