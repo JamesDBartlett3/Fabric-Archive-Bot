@@ -10,9 +10,9 @@
   The object should have the following structure:
   @{
     ServicePrincipal = @{
-      TenantId = 'YOUR_TENANT_ID'
       AppId = 'YOUR_APPLICATION_ID'
       AppSecret = 'YOUR_CLIENT_SECRET'
+      TenantId = 'YOUR_TENANT_ID'
     }
   }
 
