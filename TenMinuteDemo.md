@@ -6,7 +6,7 @@
   - “Hi, I’m James Bartlett, and today we’ll be exploring a free, open-source solution I developed called Fabric Archive Bot, and I'll show you how to automate backups of your Power BI and Fabric workspaces.”
   - “But first, I'd like to thank the Data Toboggan conference organizers for putting in the hard work to make this conference possible, and for giving me the opportunity to share this with you today.”
   - “In this demo, I’ll cover the key concepts behind Fabric Archive Bot, I'll show you how to set up the script, run it manually, and schedule it for automatic backups using Windows Task Scheduler. This tool is designed to work with Power BI and Fabric, but for the sake of time and simplicity, I'll refer to both as 'Fabric' from now on.”
-- Mention prerequisites: 
+- Prerequisites: 
   - Intermediate knowledge of the Fabric cloud service
   - Tenant administrator access to Fabric (or someone who can provide the necessary permissions)
   - An Azure Service Principal (Entra ID App Registration)
@@ -38,7 +38,7 @@
 - Open Export-FabricItemsFromAllWorkspaces.ps1 briefly, highlighting its parameters and their descriptions.
 - Open Config.json, show where to place Tenant ID, App ID, and App Secret for the Azure Service Principal.
 - Open IgnoreList.json, demonstrate how to ignore certain workspaces.
-- Show the helpers folder and explain how to use Set-FabricArchiveBotUserEnvironmentVariable.ps1
+- Show the `helpers` folder and explain how to use Set-FabricArchiveBotUserEnvironmentVariable.ps1
 
 ## Running the Script (5:00–7:30)
 
@@ -55,7 +55,7 @@
 ## Scheduling with Windows Task Scheduler (7:30–9:00)
 
 Demonstrate creating a basic task:
-- Point the “Action” to PowerShell.exe.
+- Point the “Action” to `pwsh.exe`.
 - Pass script path as the “Argument.”
 - Set daily or weekly triggers for automation.
 
