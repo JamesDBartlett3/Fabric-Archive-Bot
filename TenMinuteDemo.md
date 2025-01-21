@@ -30,8 +30,8 @@
 
 - Where to clone or download the repository.
 - Service Principal in Azure.
-  - Application ID
-  - Client Secret
+  - App ID
+  - App Secret
 - Security Group in Azure.
 - Fabric admin portal.
   - Grant the Security Group access to the read-only admin APIs.

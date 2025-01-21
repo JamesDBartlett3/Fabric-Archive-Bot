@@ -11,7 +11,7 @@
   @{
     ServicePrincipal = @{
       AppId = 'YOUR_APPLICATION_ID'
-      AppSecret = 'YOUR_CLIENT_SECRET'
+      AppSecret = 'YOUR_APP_SECRET'
       TenantId = 'YOUR_TENANT_ID'
     }
   }
