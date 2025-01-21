@@ -7,7 +7,7 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 - **Export Reports, Semantic Models, Notebooks, and Spark Job Definitions**: Exports all reports, semantic models (formerly "datasets"), notebooks, and spark job definitions from all workspaces in your Power BI/Fabric tenant to a local directory.
 - **Service Principal Support**: Can authenticate as an Entra ID App Registration (a.k.a. "Service Principal"), so you don't need to login with your user account. This is especially useful for running the script on a schedule in an unattended environment. *Note: You will need to create an App Registration in Entra ID, add it to a new security group, grant that group the necessary permissions in the Power BI Admin Portal, and then provide the Tenant ID, App ID, and App Secret in the `Config.json` file.*
 - **Fully Automated**: Run the script on a daily schedule to automatically back up all workspaces in your Power BI/Fabric tenant (use Task Scheduler in Windows or a similar tool).
-- **Configurable**: Customize the target folder, semantic model format (TMSL/TMDL), workspaces to archive, retention policy, and more (run `Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Detailed` for more information).
+- **Configurable**: Customize the target folder, semantic model format (TMSL/TMDL), workspaces to archive, retention policy, and more (run `Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1` for more information).
 - **Secure**: Uses Entra ID authentication to access the Fabric REST APIs, so you don't need to store your username and password in the script.
 
 ## Current Issues & Limitations
@@ -28,12 +28,23 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 3. Open the `IgnoreList.json` file in a text editor and fill in the items you want to ignore.
 4. Open a PowerShell terminal and navigate to the directory where you cloned this repository.
 5. Run the following command to export all supported Fabric items from all workspaces in your Power BI/Fabric tenant:
-```powershell
-.\Export-FabricItemsFromAllWorkspaces.ps1
-```
+    ```powershell
+    .\Export-FabricItemsFromAllWorkspaces.ps1
+    ```
+- You can also set up a scheduled task to run the script automatically every day at midnight. To do this, run the following command:
+  ```powershell
+  .\helpers\Register-FabricArchiveBotScheduledTask.ps1
+  ```
+- 
 
 ## Notes
-If you clone this repo, you can run these commands to prevent your changes to the `Config.json` and `IgnoreList.json` files from being tracked in Git (so you don't accidentally commit your sensitive information):
+
+If you want to customize Fabric Archive Bot's behavior, run the following command to see the available parameters:
+  ```powershell
+  Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Full
+  ```
+
+If you cloned or forked this repo with Git, you can run these commands to prevent your changes to the `Config.json` and `IgnoreList.json` files from being tracked in your local repository (so you can't accidentally commit your Service Principal App Secret!):
 ```bash
 git update-index --skip-worktree Config.json
 git update-index --skip-worktree IgnoreList.json
