@@ -196,13 +196,15 @@ $workspaceIds | ForEach-Object {
   }
 
   # Get list of folders containing a file called 'definition.pbism'
-  $semanticModelFolders = Get-ChildItem -Path $currentDirectory -Directory | Where-Object { $_.GetFiles('definition.pbism')}
+  $semanticModelFolders = Get-ChildItem -Path $currentDirectory -Directory | Where-Object { $_.GetFiles('definition.pbism') }
   # Get list of folders containing a file called 'definition.pbir'
-  $reportFolders = Get-ChildItem -Path $currentDirectory -Directory | Where-Object { $_.GetFiles('definition.pbir')}
+  $reportFolders = Get-ChildItem -Path $currentDirectory -Directory | Where-Object { $_.GetFiles('definition.pbir') }
   # Get list of Thin Semantic Models (Semantic Models without a matching Report)
   $thinSemanticModels = $semanticModelFolders | Where-Object { $_.Name -replace '\.SemanticModel', '.Report' -notin $reportFolders.Name }
   # Get list of Thick Reports (Reports with a matching Semantic Model)
   $thickReportFolders = $reportFolders | Where-Object { $_.Name -replace '\.Report', '.SemanticModel' -in $semanticModelFolders.Name }
+  # Get list of Thin Reports (Reports without a matching Semantic Model)
+  $thinReportFolders = Compare-Object -ReferenceObject $reportFolders -DifferenceObject $thickReportFolders -PassThru
   
   # Create PBIP files for Thick Reports
   foreach ($report in $thickReportFolders) {
