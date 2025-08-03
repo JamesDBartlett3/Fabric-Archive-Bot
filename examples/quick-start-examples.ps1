@@ -1,7 +1,4 @@
-# Fabric Archive Bot vWrite-Host "`n6. Custom Workspace Filter:" -ForegroundColor Cyan
-Write-Host "   .\Start-FabricArchiveBot.ps1 -WorkspaceFilter `"(state eq 'Active') and contains(name,'Production')`"" -ForegroundColor White
-
-Write-Host "`n7. Custom Target Folder:" -ForegroundColor Cyan- Quick Start Examples
+# Fabric Archive Bot v2.0 - Quick Start Examples
 
 Write-Host "Fabric Archive Bot v2.0 - Quick Start Examples" -ForegroundColor Green
 Write-Host "=" * 50
