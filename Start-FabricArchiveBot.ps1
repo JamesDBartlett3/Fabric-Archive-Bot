@@ -142,7 +142,6 @@ else {
 }
 
 # Test FabricTools availability
-$fabricToolsAvailable = $false
 try {
   if (-not (Get-Module -Name FabricTools -ListAvailable)) {
     Write-Host "FabricTools module not found. Installing from PowerShell Gallery..." -ForegroundColor Yellow
@@ -150,7 +149,6 @@ try {
   }
     
   Import-Module -Name FabricTools -Force
-  $fabricToolsAvailable = $true
   Write-Host "FabricTools module loaded successfully" -ForegroundColor Green
 }
 catch {
@@ -202,7 +200,6 @@ try {
         
     # Apply workspace filtering based on configuration
     if ($config.ExportSettings.WorkspaceFilter) {
-      # Import the core module function temporarily for discovery
       $workspaces = Invoke-FABWorkspaceFilter -Workspaces $allWorkspaces -Filter $config.ExportSettings.WorkspaceFilter
     }
     else {
