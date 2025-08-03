@@ -1,4 +1,22 @@
-# Fabric Archive Bot v2.0 - Quick Start Examples
+<#
+.SYNOPSIS
+Shows quick start examples for Fabric Archive Bot v2.0
+
+.DESCRIPTION
+Displays a comprehensive list of usage examples for Fabric Archive Bot v2.0,
+including basic usage, parallel processing, custom configurations, and advanced scenarios.
+
+.EXAMPLE
+.\Show-FabricArchiveBotExamples.ps1
+
+Displays all available usage examples for Fabric Archive Bot v2.0.
+
+.NOTES
+This script provides reference examples for common Fabric Archive Bot v2.0 usage patterns.
+All examples assume you're running from the root directory of the Fabric Archive Bot repository.
+#>
+
+# Show-FabricArchiveBotExamples.ps1 - Fabric Archive Bot v2.0 Quick Start Examples
 
 Write-Host "Fabric Archive Bot v2.0 - Quick Start Examples" -ForegroundColor Green
 Write-Host "=" * 50
@@ -30,7 +48,7 @@ Write-Host "`n8. Skip Legacy Fallback (FabricTools Only):" -ForegroundColor Cyan
 Write-Host "   .\Start-FabricArchiveBot.ps1 -SkipLegacyFallback" -ForegroundColor White
 
 Write-Host "`n9. Migration from v1.0 to v2.0:" -ForegroundColor Cyan
-Write-Host "   .\helpers\Migrate-ToV2.ps1 -TestMigration" -ForegroundColor White
+Write-Host "   .\helpers\ConvertTo-FabricArchiveBotV2.ps1 -TestMigration" -ForegroundColor White
 
 Write-Host "`n10. Full Production Example:" -ForegroundColor Cyan
 Write-Host "   .\Start-FabricArchiveBot.ps1 -ConfigPath '.\FabricArchiveBot_Config-Production.json' -UseParallelProcessing -ThrottleLimit 6 -TargetFolder 'D:\FabricArchives'" -ForegroundColor White

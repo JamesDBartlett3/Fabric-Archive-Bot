@@ -14,7 +14,7 @@ if (Test-Path $V2ConfigPath) {
 }
 elseif (Test-Path $V1ConfigPath) {
   Write-Host "Using v1.0 configuration: Config.json" -ForegroundColor Yellow
-  Write-Host "Consider migrating to v2.0 using: .\helpers\Migrate-ToV2.ps1" -ForegroundColor Yellow
+  Write-Host "Consider migrating to v2.0 using: .\helpers\ConvertTo-FabricArchiveBotV2.ps1" -ForegroundColor Yellow
   $ConfigObject = Get-Content -Path $V1ConfigPath
   $ConfigVersion = "v1.0"
 }
