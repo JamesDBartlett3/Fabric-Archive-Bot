@@ -1,0 +1,61 @@
+{
+  "Version": "2.0",
+  "ServicePrincipal": {
+    "AppId": "YOUR_APPLICATION_ID",
+    "AppSecret": "YOUR_APP_SECRET",
+    "TenantId": "YOUR_TENANT_ID"
+  },
+  "ExportSettings": {
+    "TargetFolder": ".\\Workspaces",
+    "RetentionDays": 30,
+    "WorkspaceFilter": "(type eq 'Workspace') and (state eq 'Active')",
+    "WorkspaceFilterOptions": {
+      "Comment": "Alternative filter examples:",
+      "ActiveWorkspacesOnly": "(state eq 'Active')",
+      "WorkspacesWithPattern": "contains(name,'Production')",
+      "CombinedFilter": "(type eq 'Workspace') and (state eq 'Active') and contains(name,'Finance')",
+      "NoFilter": ""
+    },
+    "ItemTypes": [
+      "Report",
+      "SemanticModel",
+      "Notebook",
+      "SparkJobDefinition",
+      "DataPipeline",
+      "Lakehouse",
+      "Warehouse"
+    ],
+    "ExportFormats": ["PBIP", "TMDL", "JSON"],
+    "UseCompression": true,
+    "IncludeMetadata": true
+  },
+  "FabricToolsSettings": {
+    "UseFabricTools": true,
+    "EnableAdvancedFeatures": true,
+    "BatchSize": 50,
+    "ParallelProcessing": true,
+    "ThrottleLimit": 0,
+    "MaxConcurrentWorkspaces": 5,
+    "RateLimitSettings": {
+      "EnableRetry": true,
+      "MaxRetries": 3,
+      "RetryDelaySeconds": 30,
+      "BackoffMultiplier": 2
+    }
+  },
+  "NotificationSettings": {
+    "EnableNotifications": false,
+    "TeamsWebhookUrl": "",
+    "EmailSettings": {
+      "SmtpServer": "",
+      "From": "",
+      "To": []
+    }
+  },
+  "AdvancedFeatures": {
+    "EnableLineageTracking": false,
+    "EnableUsageMetrics": false,
+    "EnableCapacityMonitoring": false,
+    "EnableScheduledReports": false
+  }
+}

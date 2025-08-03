@@ -23,25 +23,46 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 - ~~**Corruption of embedded PNG image files**: This script leverages the `Export-FabricItems` function from [@RuiRomano](https://github.com/RuiRomano)'s `FabricPS-PBIP` module to export items like reports and semantic models from Microsoft Fabric. Currently, there is a bug that causes PNG image files embedded in reports (e.g. scrims, company logos, etc.) to become corrupted during the export process. [I reported this issue](https://github.com/microsoft/Analysis-Services/issues/266) in the `Analysis-Services` repo where the `FabricPS-PBIP` module is published, and [Rui is now looking into whether the bug is in his module or the underlying Fabric REST API](https://github.com/microsoft/Analysis-Services/issues/266#issuecomment-2182591274). I will update this section when I have more information.~~
 
 ## Usage
+
+### Version 2.0 (Recommended - Enhanced with FabricTools)
 1. Clone this repository to your local environment.
 2. Open the `Config.json` file in a text editor and fill in the required values for your Service Principal.
 3. Open the `IgnoreList.json` file in a text editor and fill in the items you want to ignore.
 4. Open a PowerShell terminal and navigate to the directory where you cloned this repository.
-5. Run the following command to export all supported Fabric items from all workspaces in your Power BI/Fabric tenant:
+5. Run the following command to start the Fabric Archive Bot v2.0:
     ```powershell
-    .\Export-FabricItemsFromAllWorkspaces.ps1
+    .\Start-FabricArchiveBot.ps1
     ```
-- You can also set up a scheduled task to run the script automatically every day at midnight. To do this, run the following command:
+
+### Version 1.0 (Legacy - For backward compatibility)
+If you need to use the original v1.0 script, you can still run:
+```powershell
+.\Export-FabricItemsFromAllWorkspaces.ps1
+```
+
+### Additional Options
+- **Schedule the script**: Use the provided helper script to set up a Windows scheduled task:
   ```powershell
   .\helpers\Register-FabricArchiveBotScheduledTask.ps1
+  ```
+- **Migrate from v1.0 to v2.0**: Use the migration helper to upgrade your configuration:
+  ```powershell
+  .\helpers\Migrate-ToV2.ps1
   ```
 
 ## Notes
 
-If you want to customize Fabric Archive Bot's behavior, run the following command to see the available parameters:
-  ```powershell
-  Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Full
-  ```
+### Version 2.0 Features
+To see the available parameters for the enhanced v2.0 script:
+```powershell
+Get-Help .\Start-FabricArchiveBot.ps1 -Full
+```
+
+### Version 1.0 (Legacy)
+If you want to customize the legacy Fabric Archive Bot's behavior:
+```powershell
+Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Full
+```
 
 If you cloned or forked this repo with Git, you can run these commands to prevent your changes to the `Config.json` and `IgnoreList.json` files from being tracked in your local repository (so you can't accidentally commit your Service Principal App Secret!):
 ```bash
