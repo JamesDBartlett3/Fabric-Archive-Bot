@@ -47,7 +47,8 @@ If you need to use the original v1.0 script, you can still run:
   ```
 - **Migrate from v1.0 to v2.0**: Use the migration helper to upgrade your configuration:
   ```powershell
-  .\helpers\Migrate-ToV2.ps1
+    ```pwsh
+  .\helpers\ConvertTo-FabricArchiveBotV2.ps1
   ```
 
 ## Notes

@@ -628,6 +628,7 @@ Powered by FabricTools and Fabric Archive Bot v2.0
 # Export public functions
 Export-ModuleMember -Function @(
   'Export-FABFabricItemsAdvanced',
+  'Export-FABWorkspaceMetadata',
   'Start-FABFabricArchiveProcess',
   'Remove-FABOldArchives',
   'Send-FABArchiveNotification',
