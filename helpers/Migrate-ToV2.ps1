@@ -139,7 +139,8 @@ if ($TestMigration) {
   Write-Host "`nTesting migration..." -ForegroundColor Cyan
     
   try {
-    $testConfig = Get-Content -Path $V2ConfigPath | ConvertFrom-Json
+    # Test that the v2 configuration can be loaded successfully
+    Get-Content -Path $V2ConfigPath | ConvertFrom-Json | Out-Null
     Write-Host "✓ V2 configuration loads successfully" -ForegroundColor Green
         
     # Test FabricTools availability
