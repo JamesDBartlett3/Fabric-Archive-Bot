@@ -423,18 +423,32 @@ function Export-FABFabricItemsAdvanced {
   if ($enableParallelProcessing -and $allItemJobs.Count -gt 1) {
     Write-Host "Processing $($allItemJobs.Count) items in parallel across all workspaces..." -ForegroundColor Green
     
+    # Capture the rate limiting function definition for parallel execution
+    # This is critical because parallel threads run in isolated runspaces and don't have access
+    # to functions defined in the parent module unless explicitly passed
+    $rateLimitedOperationFunction = ${function:Invoke-FABRateLimitedOperation}
+    
     $allItemJobs | ForEach-Object -Parallel {
       $itemJob = $_
       $Config = $using:Config
+      $InvokeRateLimitedOperation = $using:rateLimitedOperationFunction
       
       try {
         # Import FabricTools module in parallel thread
         Import-Module -Name FabricTools -Force
         
+        # Define the rate limiting function in this thread scope
+        ${function:Invoke-FABRateLimitedOperation} = $InvokeRateLimitedOperation
+        
         $threadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
         Write-Host "Exporting item '$($itemJob.Item.displayName)' from workspace '$($itemJob.WorkspaceInfo.displayName)' (Thread: $threadId)"
         
-        # Export the item
+        # Verify function is available before use
+        if (-not (Get-Command Invoke-FABRateLimitedOperation -ErrorAction SilentlyContinue)) {
+          throw "Rate limiting function not available in parallel thread"
+        }
+        
+        # Export the item with rate limiting
         Invoke-FABRateLimitedOperation -Operation {
           Export-FabricItem -WorkspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
         } -Config $Config -OperationName "Export-FabricItem-$($itemJob.Item.id)"
