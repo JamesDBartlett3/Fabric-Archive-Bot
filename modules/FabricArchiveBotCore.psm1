@@ -300,7 +300,8 @@ function Export-FABFabricItemsAdvanced {
     Enhanced export function using FabricTools capabilities
     
     .DESCRIPTION
-    Exports Fabric items with advanced features like parallel processing, enhanced metadata, and multiple formats
+    Exports Fabric items with advanced features like item-level parallel processing, enhanced metadata, and multiple formats.
+    Parallelism is applied at the item level across all workspaces for optimal resource utilization.
     #>
   [CmdletBinding()]
   param(
@@ -360,105 +361,126 @@ function Export-FABFabricItemsAdvanced {
   }
     
   Write-Host "Found $($WorkspaceIds.Count) workspaces to process"
+  
+  # Collect all workspace info and items first
+  Write-Host "Gathering workspace information and item inventories..." -ForegroundColor Cyan
+  $allWorkspaceData = @()
+  $totalItemCount = 0
+  
+  foreach ($workspaceId in $WorkspaceIds) {
+    try {
+      Write-Host "  - Gathering info for workspace: $workspaceId"
+      
+      $workspaceInfo = Invoke-FABRateLimitedOperation -Operation {
+        Get-FabricWorkspace -WorkspaceId $workspaceId
+      } -Config $Config -OperationName "Get-FabricWorkspace-$workspaceId"
+      
+      $items = Invoke-FABRateLimitedOperation -Operation {
+        Get-FabricItem -WorkspaceId $workspaceId
+      } -Config $Config -OperationName "Get-FabricItem-$workspaceId"
+      
+      $filteredItems = $items | Where-Object { $_.type -in $Config.ExportSettings.ItemTypes }
+      $totalItemCount += $filteredItems.Count
+      
+      # Create workspace folder structure
+      $workspaceFolder = Join-Path -Path $TargetFolder -ChildPath $workspaceInfo.displayName
+      if (-not (Test-Path $workspaceFolder)) {
+        New-Item -Path $workspaceFolder -ItemType Directory -Force | Out-Null
+      }
+      
+      $allWorkspaceData += [PSCustomObject]@{
+        WorkspaceId     = $workspaceId
+        WorkspaceInfo   = $workspaceInfo
+        WorkspaceFolder = $workspaceFolder
+        Items           = $items
+        FilteredItems   = $filteredItems
+      }
+      
+      Write-Host "    Found $($filteredItems.Count) exportable items in $($workspaceInfo.displayName)"
+    }
+    catch {
+      Write-Error "Failed to gather info for workspace $workspaceId : $($_.Exception.Message)"
+    }
+  }
+  
+  Write-Host "Total items to export: $totalItemCount across $($allWorkspaceData.Count) workspaces" -ForegroundColor Green
+  
+  # Create a flattened list of all items with their workspace context
+  $allItemJobs = @()
+  foreach ($workspaceData in $allWorkspaceData) {
+    foreach ($item in $workspaceData.FilteredItems) {
+      $allItemJobs += [PSCustomObject]@{
+        WorkspaceId     = $workspaceData.WorkspaceId
+        WorkspaceInfo   = $workspaceData.WorkspaceInfo
+        WorkspaceFolder = $workspaceData.WorkspaceFolder
+        Item            = $item
+        JobId           = "$($workspaceData.WorkspaceId)-$($item.id)"
+      }
+    }
+  }
+  
+  # Process items with parallel processing if enabled
+  if ($enableParallelProcessing -and $allItemJobs.Count -gt 1) {
+    Write-Host "Processing $($allItemJobs.Count) items in parallel across all workspaces..." -ForegroundColor Green
     
-  # Process workspaces with parallel processing if enabled
-  if ($enableParallelProcessing -and $WorkspaceIds.Count -gt 1) {
-    Write-Host "Processing workspaces in parallel..." -ForegroundColor Green
-    
-    $WorkspaceIds | ForEach-Object -Parallel {
-      $workspaceId = $_
+    $allItemJobs | ForEach-Object -Parallel {
+      $itemJob = $_
       $Config = $using:Config
-      $TargetFolder = $using:TargetFolder
       
       try {
-        Write-Host "Processing workspace: $workspaceId (Thread: $([System.Threading.Thread]::CurrentThread.ManagedThreadId))"
-        
         # Import FabricTools module in parallel thread
         Import-Module -Name FabricTools -Force
         
-        # Create workspace-specific export folder
-        $workspaceInfo = Invoke-FABRateLimitedOperation -Operation {
-          Get-FabricWorkspace -WorkspaceId $workspaceId
-        } -Config $Config -OperationName "Get-FabricWorkspace-$workspaceId"
+        $threadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+        Write-Host "Exporting item '$($itemJob.Item.displayName)' from workspace '$($itemJob.WorkspaceInfo.displayName)' (Thread: $threadId)"
         
-        $workspaceFolder = Join-Path -Path $TargetFolder -ChildPath $workspaceInfo.displayName
+        # Export the item
+        Invoke-FABRateLimitedOperation -Operation {
+          Export-FabricItem -WorkspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
+        } -Config $Config -OperationName "Export-FabricItem-$($itemJob.Item.id)"
         
-        if (-not (Test-Path $workspaceFolder)) {
-          New-Item -Path $workspaceFolder -ItemType Directory -Force | Out-Null
-        }
-        
-        # Export items using FabricTools Export-FabricItem
-        $items = Invoke-FABRateLimitedOperation -Operation {
-          Get-FabricItem -WorkspaceId $workspaceId
-        } -Config $Config -OperationName "Get-FabricItem-$workspaceId"
-        
-        $filteredItems = $items | Where-Object { $_.type -in $Config.ExportSettings.ItemTypes }
-        
-        Write-Host "Exporting $($filteredItems.Count) items from workspace $($workspaceInfo.displayName)"
-        
-        foreach ($item in $filteredItems) {
-          Invoke-FABRateLimitedOperation -Operation {
-            Export-FabricItem -WorkspaceId $workspaceId -itemID $item.id -path $workspaceFolder
-          } -Config $Config -OperationName "Export-FabricItem-$($item.id)"
-        }
-        
-        # Export workspace metadata
-        $metadata = @{
-          ExportTimestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
-          WorkspaceInfo   = $workspaceInfo
-          Items           = $items
-          ExportConfig    = $Config.ExportSettings
-        }
-        
-        $metadataPath = Join-Path -Path $workspaceFolder -ChildPath "workspace-metadata.json"
-        $metadata | ConvertTo-Json -Depth 10 | Out-File -FilePath $metadataPath -Encoding UTF8
-        
-        Write-Host "Completed workspace: $($workspaceInfo.displayName)"
+        Write-Host "  ✓ Completed: '$($itemJob.Item.displayName)' (Thread: $threadId)" -ForegroundColor Green
       }
       catch {
-        Write-Error "Failed to process workspace $workspaceId : $($_.Exception.Message)"
+        Write-Error "Failed to export item '$($itemJob.Item.displayName)' from workspace '$($itemJob.WorkspaceInfo.displayName)': $($_.Exception.Message)"
       }
     } -ThrottleLimit $actualThrottleLimit
+    
+    Write-Host "Parallel item processing completed. Generating workspace metadata..." -ForegroundColor Green
   }
   else {
-    Write-Host "Processing workspaces sequentially..." -ForegroundColor Yellow
+    Write-Host "Processing $($allItemJobs.Count) items sequentially..." -ForegroundColor Yellow
     
-    foreach ($workspaceId in $WorkspaceIds) {
+    $currentWorkspace = ""
+    foreach ($itemJob in $allItemJobs) {
       try {
-        Write-Host "Processing workspace: $workspaceId"
-        
-        # Create workspace-specific export folder
-        $workspaceInfo = Invoke-FABRateLimitedOperation -Operation {
-          Get-FabricWorkspace -WorkspaceId $workspaceId
-        } -Config $Config -OperationName "Get-FabricWorkspace-$workspaceId"
-        
-        $workspaceFolder = Join-Path -Path $TargetFolder -ChildPath $workspaceInfo.displayName
-        
-        if (-not (Test-Path $workspaceFolder)) {
-          New-Item -Path $workspaceFolder -ItemType Directory -Force | Out-Null
+        # Show workspace context when we switch workspaces
+        if ($currentWorkspace -ne $itemJob.WorkspaceInfo.displayName) {
+          $currentWorkspace = $itemJob.WorkspaceInfo.displayName
+          Write-Host "Processing workspace: $currentWorkspace" -ForegroundColor Cyan
         }
         
-        # Export items using FabricTools Export-FabricItem
-        $items = Invoke-FABRateLimitedOperation -Operation {
-          Get-FabricItem -WorkspaceId $workspaceId
-        } -Config $Config -OperationName "Get-FabricItem-$workspaceId"
+        Write-Host "  - Exporting: $($itemJob.Item.displayName)"
         
-        $filteredItems = $items | Where-Object { $_.type -in $Config.ExportSettings.ItemTypes }
-        
-        Write-Host "Exporting $($filteredItems.Count) items from workspace $($workspaceInfo.displayName)"
-        
-        foreach ($item in $filteredItems) {
-          Invoke-FABRateLimitedOperation -Operation {
-            Export-FabricItem -WorkspaceId $workspaceId -itemID $item.id -path $workspaceFolder
-          } -Config $Config -OperationName "Export-FabricItem-$($item.id)"
-        }
-        
-        # Export workspace metadata
-        Export-FABWorkspaceMetadata -WorkspaceId $workspaceId -TargetFolder $workspaceFolder -Config $Config
+        Invoke-FABRateLimitedOperation -Operation {
+          Export-FabricItem -WorkspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
+        } -Config $Config -OperationName "Export-FabricItem-$($itemJob.Item.id)"
       }
       catch {
-        Write-Error "Failed to process workspace $workspaceId : $($_.Exception.Message)"
+        Write-Error "Failed to export item '$($itemJob.Item.displayName)' from workspace '$($itemJob.WorkspaceInfo.displayName)': $($_.Exception.Message)"
       }
+    }
+  }
+  
+  # Generate metadata for all workspaces after item processing is complete
+  Write-Host "Generating workspace metadata files..." -ForegroundColor Cyan
+  foreach ($workspaceData in $allWorkspaceData) {
+    try {
+      Export-FABWorkspaceMetadata -WorkspaceId $workspaceData.WorkspaceId -TargetFolder $workspaceData.WorkspaceFolder -Config $Config
+      Write-Host "  ✓ Metadata generated for: $($workspaceData.WorkspaceInfo.displayName)" -ForegroundColor Green
+    }
+    catch {
+      Write-Error "Failed to generate metadata for workspace '$($workspaceData.WorkspaceInfo.displayName)': $($_.Exception.Message)"
     }
   }
 }
