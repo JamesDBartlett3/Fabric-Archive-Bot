@@ -1,5 +1,3 @@
-using module FabricTools
-
 <#
 .SYNOPSIS
 Core module for Fabric Archive Bot v2.0 using FabricTools
@@ -156,7 +154,7 @@ function Initialize-FABFabricConnection {
   try {
     if ($Config.ServicePrincipal.AppId -and $Config.ServicePrincipal.AppSecret -and $Config.ServicePrincipal.TenantId) {
       # Use Service Principal authentication with FabricTools
-      Connect-FabricAccount -ServicePrincipal -TenantId $Config.ServicePrincipal.TenantId -ClientId $Config.ServicePrincipal.AppId -ClientSecret $Config.ServicePrincipal.AppSecret
+      Connect-FabricAccount -TenantId $Config.ServicePrincipal.TenantId -ServicePrincipalId $Config.ServicePrincipal.AppId -ServicePrincipalSecret $Config.ServicePrincipal.AppSecret
     }
     else {
       # Use interactive authentication

@@ -110,10 +110,6 @@ if (-not (Test-Path -Path $ConfigPath)) {
 # Load configuration
 try {
   $config = Get-Content -Path $ConfigPath | ConvertFrom-Json
-    
-  # Ensure configuration compatibility (requires core module to be loaded)
-  $config = Confirm-FABConfigurationCompatibility -Config $config
-    
   Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
 }
 catch {
@@ -134,7 +130,24 @@ $coreModulePath = Join-Path -Path $PSScriptRoot -ChildPath "modules\FabricArchiv
 
 if (Test-Path -Path $coreModulePath) {
   Write-Host "Loading Fabric Archive Bot Core module..." -ForegroundColor Cyan
-  Import-Module -Name $coreModulePath -Force
+  try {
+    Import-Module -Name $coreModulePath -Force
+    Write-Host "Core module loaded successfully" -ForegroundColor Green
+    
+    # Ensure configuration compatibility now that core module is loaded
+    try {
+      $config = Confirm-FABConfigurationCompatibility -Config $config
+      Write-Host "Configuration compatibility validated" -ForegroundColor Green
+    }
+    catch {
+      Write-Error "Configuration compatibility check failed: $($_.Exception.Message)"
+      exit 1
+    }
+  }
+  catch {
+    Write-Error "Failed to import core module: $($_.Exception.Message)"
+    exit 1
+  }
 }
 else {
   Write-Error "Core module not found: $coreModulePath"
@@ -189,7 +202,7 @@ try {
         
     # Connect to Fabric for discovery
     if ($config.ServicePrincipal.AppId -and $config.ServicePrincipal.AppSecret -and $config.ServicePrincipal.TenantId) {
-      Connect-FabricAccount -ServicePrincipal -TenantId $config.ServicePrincipal.TenantId -ClientId $config.ServicePrincipal.AppId -ClientSecret $config.ServicePrincipal.AppSecret
+      Connect-FabricAccount -TenantId $config.ServicePrincipal.TenantId -ServicePrincipalId $config.ServicePrincipal.AppId -ServicePrincipalSecret $config.ServicePrincipal.AppSecret
     }
     else {
       Connect-FabricAccount
