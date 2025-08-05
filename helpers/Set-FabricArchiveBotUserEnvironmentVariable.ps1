@@ -33,18 +33,19 @@ if (-not $ConfigPath.EndsWith(".json")) {
 try {
   $ConfigContent = Get-Content -Path $ConfigPath | ConvertFrom-Json
   
+  $ServicePrincipalProperty = $ConfigContent.PSObject.Properties['ServicePrincipal']
+
   # Check if this looks like a Fabric Archive Bot configuration file
-  if (-not ($ConfigContent.PSObject.Properties['ServicePrincipal'] -or 
-      $ConfigContent.PSObject.Properties['AppSecret'] -or
-      $ConfigContent.PSObject.Properties['TenantId'] -or
-      $ConfigContent.PSObject.Properties['AppId'])) {
-    Write-Error "The specified file does not appear to be a valid Fabric Archive Bot configuration file."
-    Write-Host "Expected to find ServicePrincipal, AppSecret, TenantId, or AppId properties."
+  if (-not ($ServicePrincipalProperty -and
+      $ServicePrincipalProperty.Value.AppSecret -and
+      $ServicePrincipalProperty.Value.AppId -and
+      $ServicePrincipalProperty.Value.TenantId)) {
+    Write-Error "The specified file does not appear to be a valid Fabric Archive Bot configuration file.`nExpected to find ServicePrincipal property with AppSecret, TenantId, and AppId values."
     exit 1
   }
   
   # Determine the version
-  $ConfigVersion = if ($ConfigContent.PSObject.Properties['Version']) { 
+  $ConfigVersion = if ($ConfigContent.PSObject.Properties['Version']) {
     $ConfigContent.Version
   }
   else { 
@@ -82,7 +83,7 @@ catch {
 $ConfigObject = Get-Content -Path $ConfigPath
 
 if ($ConfigVersion -eq "v1.0") {
-  Write-Host "Consider migrating to v2.0 using: .\helpers\ConvertTo-FabricArchiveBotV2.ps1" -ForegroundColor Yellow
+  Write-Host "Consider migrating to Fabric Archive Bot v2.0 using: .\helpers\ConvertTo-FabricArchiveBotV2.ps1" -ForegroundColor Yellow
 }
 
 # Remove all new lines, carriage returns, and whitespace from the ConfigObject
