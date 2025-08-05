@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-Core module for Fabric Archive Bot v2.0 using FabricTools
+Core module for Fabric Archive Bot v2.0 using FabricPS-PBIP
 
 .DESCRIPTION
-This module provides enhanced archiving capabilities using the FabricTools PowerShell module
+This module provides enhanced archiving capabilities using the FabricPS-PBIP PowerShell module
 while maintaining backward compatibility with v1.0 functionality.
 #>
 
@@ -15,7 +15,7 @@ function Invoke-FABRateLimitedOperation {
   Executes operations with built-in rate limiting and retry logic
   
   .DESCRIPTION
-  Wraps FabricTools operations with enhanced rate limiting handling, retry logic, and monitoring
+  Wraps FabricPS-PBIP operations with enhanced rate limiting handling, retry logic, and monitoring
   #>
   [CmdletBinding()]
   param(
@@ -36,18 +36,18 @@ function Invoke-FABRateLimitedOperation {
   )
   
   $retryCount = 0
-  $maxRetries = if ($Config -and $Config.FabricToolsSettings.RateLimitSettings.MaxRetries) {
-    $Config.FabricToolsSettings.RateLimitSettings.MaxRetries
+  $maxRetries = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.MaxRetries) {
+    $Config.FabricPSPBIPSettings.RateLimitSettings.MaxRetries
   }
   else { $MaxRetries }
   
-  $baseDelay = if ($Config -and $Config.FabricToolsSettings.RateLimitSettings.RetryDelaySeconds) {
-    $Config.FabricToolsSettings.RateLimitSettings.RetryDelaySeconds
+  $baseDelay = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.RetryDelaySeconds) {
+    $Config.FabricPSPBIPSettings.RateLimitSettings.RetryDelaySeconds
   }
   else { $BaseDelaySeconds }
   
-  $backoffMultiplier = if ($Config -and $Config.FabricToolsSettings.RateLimitSettings.BackoffMultiplier) {
-    $Config.FabricToolsSettings.RateLimitSettings.BackoffMultiplier
+  $backoffMultiplier = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.BackoffMultiplier) {
+    $Config.FabricPSPBIPSettings.RateLimitSettings.BackoffMultiplier
   }
   else { 2 }
   
@@ -113,8 +113,8 @@ function Get-FABOptimalThrottleLimit {
     $throttleLimit = $OverrideThrottleLimit
     Write-Host "Using runtime override throttle limit: $throttleLimit"
   }
-  elseif ($Config.FabricToolsSettings.PSObject.Properties['ThrottleLimit'] -and $Config.FabricToolsSettings.ThrottleLimit -gt 0) {
-    $throttleLimit = $Config.FabricToolsSettings.ThrottleLimit
+  elseif ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ThrottleLimit'] -and $Config.FabricPSPBIPSettings.ThrottleLimit -gt 0) {
+    $throttleLimit = $Config.FabricPSPBIPSettings.ThrottleLimit
     Write-Host "Using config throttle limit: $throttleLimit"
   }
   else {
@@ -126,20 +126,37 @@ function Get-FABOptimalThrottleLimit {
   return $throttleLimit
 }
 
-function Test-FABFabricToolsAvailability {
+function Test-FABFabricPSPBIPAvailability {
   [CmdletBinding()]
   param()
     
   try {
-    if (-not (Get-Module -Name FabricTools -ListAvailable)) {
-      Write-Warning "FabricTools module not found. Installing from PowerShell Gallery..."
-      Install-Module -Name FabricTools -Scope CurrentUser -Force
+    # Check if FabricPS-PBIP module functions are available
+    if (Get-Command -Name "Invoke-FabricAPIRequest" -ErrorAction SilentlyContinue) {
+      return $true
     }
-    Import-Module -Name FabricTools -Force
-    return $true
+    
+    # If not available, try to import it from the expected location
+    $moduleFileName = "FabricPS-PBIP.psm1"
+    $possiblePaths = @(
+      (Join-Path -Path $PSScriptRoot -ChildPath "..\$moduleFileName"),
+      (Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath $moduleFileName)
+    )
+    
+    foreach ($path in $possiblePaths) {
+      if (Test-Path -Path $path) {
+        Import-Module -Name $path -Force
+        if (Get-Command -Name "Invoke-FabricAPIRequest" -ErrorAction SilentlyContinue) {
+          return $true
+        }
+      }
+    }
+    
+    Write-Warning "FabricPS-PBIP module not found or not properly loaded"
+    return $false
   }
   catch {
-    Write-Error "Failed to load FabricTools module: $($_.Exception.Message)"
+    Write-Error "Failed to load FabricPS-PBIP module: $($_.Exception.Message)"
     return $false
   }
 }
@@ -153,21 +170,78 @@ function Initialize-FABFabricConnection {
     
   try {
     if ($Config.ServicePrincipal.AppId -and $Config.ServicePrincipal.AppSecret -and $Config.ServicePrincipal.TenantId) {
-      # Convert the secret to SecureString as required by FabricTools
-      $secureSecret = ConvertTo-SecureString -String $Config.ServicePrincipal.AppSecret -AsPlainText -Force
-      
-      # Use Service Principal authentication with FabricTools
-      Connect-FabricAccount -TenantId $Config.ServicePrincipal.TenantId -ServicePrincipalId $Config.ServicePrincipal.AppId -ServicePrincipalSecret $secureSecret
+      # Use Service Principal authentication with FabricPS-PBIP
+      Set-FabricAuthToken -servicePrincipalId $Config.ServicePrincipal.AppId -servicePrincipalSecret $Config.ServicePrincipal.AppSecret -tenantId $Config.ServicePrincipal.TenantId
     }
     else {
       # Use interactive authentication
-      Connect-FabricAccount
+      Set-FabricAuthToken
     }
     return $true
   }
   catch {
     Write-Error "Failed to connect to Fabric: $($_.Exception.Message)"
     return $false
+  }
+}
+
+function Get-FABFabricWorkspaceById {
+  <#
+  .SYNOPSIS
+  Gets a specific workspace by ID using FabricPS-PBIP
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$WorkspaceId
+  )
+  
+  try {
+    $workspace = Invoke-FabricAPIRequest -Uri "workspaces/$WorkspaceId" -Method Get
+    return $workspace
+  }
+  catch {
+    Write-Warning "Failed to get workspace $WorkspaceId : $($_.Exception.Message)"
+    return $null
+  }
+}
+
+function Get-FABFabricItemsByWorkspace {
+  <#
+  .SYNOPSIS
+  Gets all items from a specific workspace using FabricPS-PBIP
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$WorkspaceId
+  )
+  
+  try {
+    $items = Invoke-FabricAPIRequest -Uri "workspaces/$WorkspaceId/items" -Method Get
+    return $items
+  }
+  catch {
+    Write-Warning "Failed to get items from workspace $WorkspaceId : $($_.Exception.Message)"
+    return @()
+  }
+}
+
+function Get-FABFabricWorkspaces {
+  <#
+  .SYNOPSIS
+  Gets all workspaces using FabricPS-PBIP
+  #>
+  [CmdletBinding()]
+  param()
+  
+  try {
+    $workspaces = Invoke-FabricAPIRequest -Uri "workspaces" -Method Get
+    return $workspaces
+  }
+  catch {
+    Write-Warning "Failed to get workspaces: $($_.Exception.Message)"
+    return @()
   }
 }
 
@@ -208,10 +282,19 @@ function Invoke-FABWorkspaceFilter {
     $filteredWorkspaces = $Workspaces
     
     # Handle state filtering - matches: state eq 'Active', state eq 'Inactive'
+    # Note: Fabric API doesn't return 'state' property, so we treat all returned workspaces as 'Active'
     if ($Filter -match "state\s+eq\s+'([^']+)'") {
       $stateFilter = $matches[1]
       Write-Host "  - Filtering by state: $stateFilter"
-      $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.state -eq $stateFilter }
+      if ($stateFilter -eq 'Active') {
+        # All workspaces returned by the API are considered active/accessible
+        Write-Host "    (All returned workspaces are treated as Active)"
+      }
+      else {
+        # If filtering for inactive workspaces, return empty since API only returns active ones
+        Write-Host "    (Filtering out all workspaces since API only returns active ones)"
+        $filteredWorkspaces = @()
+      }
     }
     
     # Handle type filtering - matches: type eq 'Workspace'
@@ -302,7 +385,7 @@ function Confirm-FABConfigurationCompatibility {
 function Export-FABFabricItemsAdvanced {
   <#
     .SYNOPSIS
-    Enhanced export function using FabricTools capabilities
+    Enhanced export function using FabricPS-PBIP capabilities
     
     .DESCRIPTION
     Exports Fabric items with advanced features like item-level parallel processing, enhanced metadata, and multiple formats.
@@ -326,14 +409,14 @@ function Export-FABFabricItemsAdvanced {
     [int]$ThrottleLimit = 0
   )
     
-  # Initialize FabricTools connection
+  # Initialize FabricPS-PBIP connection
   if (-not (Initialize-FABFabricConnection -Config $Config)) {
     throw "Failed to initialize Fabric connection"
   }
   
   # Determine if parallel processing should be enabled
   $enableParallelProcessing = $UseParallelProcessing.IsPresent -or 
-  ($Config.FabricToolsSettings.PSObject.Properties['ParallelProcessing'] -and $Config.FabricToolsSettings.ParallelProcessing) -or
+  ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ParallelProcessing'] -and $Config.FabricPSPBIPSettings.ParallelProcessing) -or
   ($PSVersionTable.PSVersion.Major -ge 7 -and -not $UseParallelProcessing.IsPresent)
   
   # Check PowerShell version for parallel processing
@@ -350,22 +433,44 @@ function Export-FABFabricItemsAdvanced {
     Write-Host "Throttle limit: $actualThrottleLimit" -ForegroundColor Green
   }
     
-  # Get workspaces using FabricTools
+  # Get workspaces using FabricPS-PBIP
   if (-not $WorkspaceIds) {
     Write-Host "Retrieving workspaces based on configuration filter..."
     $workspaces = Invoke-FABRateLimitedOperation -Operation {
-      Get-FabricWorkspace
-    } -Config $Config -OperationName "Get-FabricWorkspace"
+      Get-FABFabricWorkspaces
+    } -Config $Config -OperationName "Get-FabricWorkspaces"
+    
+    # Ensure we have a valid array
+    if (-not $workspaces) {
+      $workspaces = @()
+    }
     
     # Apply workspace filtering based on configuration
     if ($Config.ExportSettings.WorkspaceFilter) {
       $workspaces = Invoke-FABWorkspaceFilter -Workspaces $workspaces -Filter $Config.ExportSettings.WorkspaceFilter
+      # Ensure filtering result is valid
+      if (-not $workspaces) {
+        $workspaces = @()
+      }
     }
     
-    $WorkspaceIds = $workspaces.id
+    # Safely extract workspace IDs
+    if ($workspaces -and $workspaces.Count -gt 0) {
+      $WorkspaceIds = $workspaces.id
+    }
+    else {
+      $WorkspaceIds = @()
+      Write-Warning "No workspaces found matching the filter criteria"
+    }
   }
     
   Write-Host "Found $($WorkspaceIds.Count) workspaces to process"
+  
+  # Check if we have any workspaces to process
+  if ($WorkspaceIds.Count -eq 0) {
+    Write-Host "No workspaces found to process. Exiting gracefully." -ForegroundColor Yellow
+    return
+  }
   
   # Collect all workspace info and items first
   Write-Host "Gathering workspace information and item inventories..." -ForegroundColor Cyan
@@ -377,11 +482,11 @@ function Export-FABFabricItemsAdvanced {
       Write-Host "  - Gathering info for workspace: $workspaceId"
       
       $workspaceInfo = Invoke-FABRateLimitedOperation -Operation {
-        Get-FabricWorkspace -WorkspaceId $workspaceId
+        Get-FABFabricWorkspaceById -WorkspaceId $workspaceId
       } -Config $Config -OperationName "Get-FabricWorkspace-$workspaceId"
       
       $items = Invoke-FABRateLimitedOperation -Operation {
-        Get-FabricItem -WorkspaceId $workspaceId
+        Get-FABFabricItemsByWorkspace -WorkspaceId $workspaceId
       } -Config $Config -OperationName "Get-FabricItem-$workspaceId"
       
       $filteredItems = $items | Where-Object { $_.type -in $Config.ExportSettings.ItemTypes }
@@ -432,14 +537,34 @@ function Export-FABFabricItemsAdvanced {
     $rateLimitedOperationFunction = Get-Command Invoke-FABRateLimitedOperation
     $rateLimitedOperationFunctionText = $rateLimitedOperationFunction.Definition
     
+    # Get the FabricPS-PBIP module path to pass to parallel threads
+    $moduleFileName = "FabricPS-PBIP.psm1"
+    $fabricModulePath = $null
+    $possiblePaths = @(
+      (Join-Path -Path $PSScriptRoot -ChildPath "..\$moduleFileName"),
+      (Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath $moduleFileName)
+    )
+    
+    foreach ($path in $possiblePaths) {
+      if (Test-Path -Path $path) {
+        $fabricModulePath = $path
+        break
+      }
+    }
+    
+    if (-not $fabricModulePath) {
+      throw "FabricPS-PBIP module path not found for parallel processing"
+    }
+    
     $allItemJobs | ForEach-Object -Parallel {
       $itemJob = $_
       $Config = $using:Config
       $functionText = $using:rateLimitedOperationFunctionText
+      $modulePath = $using:fabricModulePath
       
       try {
-        # Import FabricTools module in parallel thread
-        Import-Module -Name FabricTools -Force
+        # Import FabricPS-PBIP module in parallel thread
+        Import-Module -Name $modulePath -Force
         
         # Define the rate limiting function in this thread scope
         $functionDefinition = "function Invoke-FABRateLimitedOperation { $functionText }"
@@ -448,9 +573,16 @@ function Export-FABFabricItemsAdvanced {
         $threadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
         Write-Host "Exporting item '$($itemJob.Item.displayName)' from workspace '$($itemJob.WorkspaceInfo.displayName)' (Thread: $threadId)"
         
+        # Create item-specific folder
+        $itemFolderName = "$($itemJob.Item.displayName).$($itemJob.Item.type)"
+        $itemFolder = Join-Path -Path $itemJob.WorkspaceFolder -ChildPath $itemFolderName
+        if (-not (Test-Path $itemFolder)) {
+          New-Item -Path $itemFolder -ItemType Directory -Force | Out-Null
+        }
+        
         # Export the item with rate limiting
         Invoke-FABRateLimitedOperation -Operation {
-          Export-FabricItem -workspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
+          Export-FabricItem -workspaceId $itemJob.WorkspaceId -itemId $itemJob.Item.id -path $itemFolder
         } -Config $Config -OperationName "Export-FabricItem-$($itemJob.Item.id)"
         
         Write-Host "  ✓ Completed: '$($itemJob.Item.displayName)' (Thread: $threadId)" -ForegroundColor Green
@@ -476,8 +608,15 @@ function Export-FABFabricItemsAdvanced {
         
         Write-Host "  - Exporting: $($itemJob.Item.displayName)"
         
+        # Create item-specific folder
+        $itemFolderName = "$($itemJob.Item.displayName).$($itemJob.Item.type)"
+        $itemFolder = Join-Path -Path $itemJob.WorkspaceFolder -ChildPath $itemFolderName
+        if (-not (Test-Path $itemFolder)) {
+          New-Item -Path $itemFolder -ItemType Directory -Force | Out-Null
+        }
+        
         Invoke-FABRateLimitedOperation -Operation {
-          Export-FabricItem -workspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
+          Export-FabricItem -workspaceId $itemJob.WorkspaceId -itemId $itemJob.Item.id -path $itemFolder
         } -Config $Config -OperationName "Export-FabricItem-$($itemJob.Item.id)"
       }
       catch {
@@ -502,7 +641,7 @@ function Export-FABFabricItemsAdvanced {
 function Export-FABWorkspaceMetadata {
   <#
     .SYNOPSIS
-    Exports enhanced metadata for a workspace using FabricTools capabilities
+    Exports enhanced metadata for a workspace using FabricPS-PBIP capabilities
     #>
   [CmdletBinding()]
   param(
@@ -519,10 +658,10 @@ function Export-FABWorkspaceMetadata {
   $metadata = @{
     ExportTimestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
     WorkspaceInfo   = Invoke-FABRateLimitedOperation -Operation {
-      Get-FabricWorkspace -WorkspaceId $WorkspaceId
+      Get-FABFabricWorkspaceById -WorkspaceId $WorkspaceId
     } -Config $Config -OperationName "Get-FabricWorkspace-Metadata-$WorkspaceId"
     Items           = Invoke-FABRateLimitedOperation -Operation {
-      Get-FabricItem -WorkspaceId $WorkspaceId
+      Get-FABFabricItemsByWorkspace -WorkspaceId $WorkspaceId
     } -Config $Config -OperationName "Get-FabricItem-Metadata-$WorkspaceId"
     ExportConfig    = $Config.ExportSettings
   }
@@ -530,9 +669,12 @@ function Export-FABWorkspaceMetadata {
   # Add advanced metadata if enabled
   if ($Config.AdvancedFeatures.EnableUsageMetrics) {
     try {
-      $metadata.UsageMetrics = Invoke-FABRateLimitedOperation -Operation {
-        Get-FabricWorkspaceUsageMetricsData -WorkspaceId $WorkspaceId
-      } -Config $Config -OperationName "Get-FabricWorkspaceUsageMetricsData-$WorkspaceId"
+      # Usage metrics functionality not yet implemented for FabricPS-PBIP
+      Write-Warning "Usage metrics export not yet supported with FabricPS-PBIP module"
+      $metadata.UsageMetrics = @{
+        Note      = "Usage metrics not available with FabricPS-PBIP"
+        Timestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
+      }
     }
     catch {
       Write-Warning "Could not retrieve usage metrics for workspace $WorkspaceId : $($_.Exception.Message)"
@@ -564,9 +706,9 @@ function Start-FABFabricArchiveProcess {
     [int]$ThrottleLimit = 0
   )
     
-  # Test FabricTools availability
-  if (-not (Test-FABFabricToolsAvailability)) {
-    throw "FabricTools module is required but not available"
+  # Test FabricPS-PBIP availability
+  if (-not (Test-FABFabricPSPBIPAvailability)) {
+    throw "FabricPS-PBIP module is required but not available"
   }
     
   # Load configuration based on parameter set
@@ -663,7 +805,7 @@ Items Archived: $itemCount
 Total Size: $(($archiveSize / 1MB).ToString('F2')) MB
 Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 
-Powered by FabricTools and Fabric Archive Bot v2.0
+Powered by FabricPS-PBIP and Fabric Archive Bot v2.0
 "@
     
   # Implementation for Teams webhook, email, etc. would go here
@@ -683,5 +825,8 @@ Export-ModuleMember -Function @(
   'Invoke-FABWorkspaceFilter',
   'Get-FABOptimalThrottleLimit',
   'Invoke-FABRateLimitedOperation',
-  'Export-FABItemDefinitionDirect'
+  'Export-FABItemDefinitionDirect',
+  'Get-FABFabricWorkspaces',
+  'Get-FABFabricWorkspaceById',
+  'Get-FABFabricItemsByWorkspace'
 )

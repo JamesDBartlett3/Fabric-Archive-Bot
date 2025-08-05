@@ -3,7 +3,7 @@
   Starts the Fabric Archive Bot to export all items from Fabric/Power BI workspaces
 
 .DESCRIPTION
-  This is the main entry point for Fabric Archive Bot v2.0, enhanced with FabricTools integration.
+  This is the main entry point for Fabric Archive Bot v2.0, enhanced with FabricPS-PBIP integration.
   Provides advanced features like parallel processing, enhanced metadata export, 
   multiple export formats, comprehensive monitoring, and configurable workspace filtering.
 
@@ -26,7 +26,7 @@
   Maximum number of concurrent workspace processing threads. Defaults to CPU core count.
 
 .PARAMETER SkipLegacyFallback
-  Skip fallback to v1.0 functionality if FabricTools is unavailable.
+  Skip fallback to v1.0 functionality if FabricPS-PBIP is unavailable.
 
 .INPUTS
   None - Pipeline input is not accepted.
@@ -63,12 +63,12 @@
   [Source code](https://github.com/JamesDBartlett3/Fabric-Archive-Bot)
 
 .LINK
-  [FabricTools Module](https://github.com/dataplat/FabricTools)
+  [FabricPS-PBIP Module](https://github.com/microsoft/Analysis-Services/tree/master/pbidevmode/fabricps-pbip)
 
 .NOTES
   Requires PowerShell 7+ for optimal performance
-  Requires FabricTools module (will be installed automatically if missing)
-  Falls back to v1.0 functionality if FabricTools is unavailable
+  Requires FabricPS-PBIP module (will be downloaded automatically if missing)
+  Falls back to v1.0 functionality if FabricPS-PBIP is unavailable
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -100,7 +100,7 @@ $ScriptVersion = "2.0.0"
 $ScriptName = "Fabric Archive Bot v2.0"
 
 Write-Host "$ScriptName - Version $ScriptVersion" -ForegroundColor Green
-Write-Host "Enhanced with FabricTools integration" -ForegroundColor Cyan
+Write-Host "Enhanced with FabricPS-PBIP integration" -ForegroundColor Cyan
 Write-Host ("=" * 50)
 
 #region Prerequisites and Validation
@@ -187,18 +187,48 @@ else {
   exit 1
 }
 
-# Test FabricTools availability
+# Test FabricPS-PBIP availability and download if needed
 try {
-  if (-not (Get-Module -Name FabricTools -ListAvailable)) {
-    Write-Host "FabricTools module not found. Installing from PowerShell Gallery..." -ForegroundColor Yellow
-    Install-Module -Name FabricTools -Scope CurrentUser -Force -AllowClobber
+  # Ensure NuGet package provider is available (required for FabricPS-PBIP dependencies)
+  if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
+    Write-Host "Registering NuGet package provider..." -ForegroundColor Yellow
+    Register-PackageSource -Name 'NuGet.org' -Location 'https://api.nuget.org/v3/index.json' -ProviderName 'NuGet'
   }
-    
-  Import-Module -Name FabricTools -Force
-  Write-Host "FabricTools module loaded successfully" -ForegroundColor Green
+  
+  # Define module URL and local path
+  $moduleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'
+  $moduleFileName = Split-Path -Leaf $moduleUrl
+  $localModulePath = Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName
+  
+  # Download latest FabricPS-PBIP.psm1 if it doesn't exist or if we want the latest
+  if (-not (Test-Path -Path $localModulePath)) {
+    Write-Host "FabricPS-PBIP module not found. Downloading from GitHub..." -ForegroundColor Yellow
+    try {
+      Invoke-WebRequest -Uri $moduleUrl -OutFile $localModulePath
+      Unblock-File -Path $localModulePath
+      Write-Host "FabricPS-PBIP module downloaded successfully" -ForegroundColor Green
+    }
+    catch {
+      Write-Error "Failed to download FabricPS-PBIP module: $($_.Exception.Message)"
+      throw
+    }
+  }
+  
+  # Ensure required Az modules are available
+  $requiredModules = @('Az.Accounts', 'Az.Resources')
+  foreach ($module in $requiredModules) {
+    if (-not (Get-Module -Name $module -ListAvailable)) {
+      Write-Host "Installing required module: $module" -ForegroundColor Yellow
+      Install-Module -Name $module -Scope CurrentUser -Force
+    }
+  }
+  
+  # Import the FabricPS-PBIP module
+  Import-Module -Name $localModulePath -Force
+  Write-Host "FabricPS-PBIP module loaded successfully" -ForegroundColor Green
 }
 catch {
-  Write-Warning "Failed to load FabricTools module: $($_.Exception.Message)"
+  Write-Warning "Failed to load FabricPS-PBIP module: $($_.Exception.Message)"
     
   if (-not $SkipLegacyFallback) {
     Write-Host "Falling back to v1.0 functionality..." -ForegroundColor Yellow
@@ -210,12 +240,12 @@ catch {
       exit $LASTEXITCODE
     }
     else {
-      Write-Error "Legacy script not found and FabricTools unavailable. Cannot proceed."
+      Write-Error "Legacy script not found and FabricPS-PBIP unavailable. Cannot proceed."
       exit 1
     }
   }
   else {
-    Write-Error "FabricTools unavailable and legacy fallback disabled. Cannot proceed."
+    Write-Error "FabricPS-PBIP unavailable and legacy fallback disabled. Cannot proceed."
     exit 1
   }
 }
@@ -233,18 +263,18 @@ try {
   if ($WhatIfPreference) {
     Write-Host "WHAT-IF MODE: No actual changes will be made" -ForegroundColor Yellow
         
-    # Connect to Fabric for discovery
+    # Connect to Fabric for discovery using FabricPS-PBIP
     if ($config.ServicePrincipal.AppId -and $config.ServicePrincipal.AppSecret -and $config.ServicePrincipal.TenantId) {
-      # Convert the secret to SecureString as required by FabricTools
-      $secureSecret = ConvertTo-SecureString -String $config.ServicePrincipal.AppSecret -AsPlainText -Force
-      Connect-FabricAccount -TenantId $config.ServicePrincipal.TenantId -ServicePrincipalId $config.ServicePrincipal.AppId -ServicePrincipalSecret $secureSecret
+      # Use service principal authentication
+      Set-FabricAuthToken -servicePrincipalId $config.ServicePrincipal.AppId -servicePrincipalSecret $config.ServicePrincipal.AppSecret -tenantId $config.ServicePrincipal.TenantId
     }
     else {
-      Connect-FabricAccount
+      # Use interactive authentication
+      Set-FabricAuthToken
     }
         
-    # Discovery mode
-    $allWorkspaces = Get-FabricWorkspace
+    # Discovery mode - get workspaces using FabricPS-PBIP
+    $allWorkspaces = Invoke-FabricAPIRequest -Uri "workspaces" -Method Get
         
     # Apply workspace filtering based on configuration
     if ($config.ExportSettings.WorkspaceFilter) {
@@ -257,7 +287,8 @@ try {
     Write-Host "`nWould process $($workspaces.Count) workspaces matching filter '$($config.ExportSettings.WorkspaceFilter)':" -ForegroundColor Yellow
         
     foreach ($workspace in $workspaces | Select-Object -First 10) {
-      $items = Get-FabricItem -WorkspaceId $workspace.id
+      # Get items using FabricPS-PBIP API call pattern
+      $items = Invoke-FabricAPIRequest -Uri "workspaces/$($workspace.id)/items" -Method Get
       $filteredItems = $items | Where-Object { $_.type -in $config.ExportSettings.ItemTypes }
       Write-Host "  - $($workspace.displayName): $($filteredItems.Count) items" -ForegroundColor Gray
     }
