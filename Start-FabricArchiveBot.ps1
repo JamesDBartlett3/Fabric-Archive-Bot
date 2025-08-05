@@ -10,6 +10,9 @@
 .PARAMETER ConfigPath
   Path to the configuration file. Defaults to FabricArchiveBot_Config.json in the script directory.
 
+.PARAMETER ConfigFromEnv
+  Load configuration from the FabricArchiveBot_ConfigObject environment variable instead of a file.
+
 .PARAMETER WorkspaceFilter
   Override the workspace filter from configuration.
 
@@ -42,6 +45,11 @@
   Runs with custom configuration and parallel processing enabled.
 
 .EXAMPLE
+  .\Start-FabricArchiveBot.ps1 -ConfigFromEnv
+
+  Runs using configuration loaded from the FabricArchiveBot_ConfigObject environment variable.
+
+.EXAMPLE
   .\Start-FabricArchiveBot.ps1 -WhatIf
 
   Shows what would be exported without performing the actual export.
@@ -69,6 +77,9 @@ param(
   [string]$ConfigPath = (Join-Path -Path $PSScriptRoot -ChildPath 'FabricArchiveBot_Config.json'),
     
   [Parameter()]
+  [switch]$ConfigFromEnv,
+    
+  [Parameter()]
   [string]$WorkspaceFilter,
     
   [Parameter()]
@@ -90,7 +101,7 @@ $ScriptName = "Fabric Archive Bot v2.0"
 
 Write-Host "$ScriptName - Version $ScriptVersion" -ForegroundColor Green
 Write-Host "Enhanced with FabricTools integration" -ForegroundColor Cyan
-Write-Host "=" * 50
+Write-Host ("=" * 50)
 
 #region Prerequisites and Validation
 
@@ -100,21 +111,43 @@ if ($PSVersionTable.PSVersion.Major -lt 7 -and $UseParallelProcessing) {
   $UseParallelProcessing = $false
 }
 
-# Validate configuration file
-if (-not (Test-Path -Path $ConfigPath)) {
-  Write-Error "Configuration file not found: $ConfigPath"
-  Write-Host "Please ensure your configuration file exists or run with -ConfigPath parameter."
-  exit 1
+# Validate configuration source and load configuration
+if ($ConfigFromEnv) {
+  # Load configuration from environment variable
+  $envConfig = [System.Environment]::GetEnvironmentVariable("FabricArchiveBot_ConfigObject", "User")
+  
+  if (-not $envConfig) {
+    Write-Error "FabricArchiveBot_ConfigObject environment variable not found or is empty."
+    Write-Host "Please run the Set-FabricArchiveBotUserEnvironmentVariable.ps1 script first to set up the environment variable."
+    exit 1
+  }
+  
+  try {
+    $config = $envConfig | ConvertFrom-Json
+    Write-Host "Configuration loaded from environment variable" -ForegroundColor Green
+  }
+  catch {
+    Write-Error "Failed to parse configuration from environment variable: $($_.Exception.Message)"
+    Write-Host "The environment variable may contain invalid JSON. Please run Set-FabricArchiveBotUserEnvironmentVariable.ps1 again."
+    exit 1
+  }
 }
-
-# Load configuration
-try {
-  $config = Get-Content -Path $ConfigPath | ConvertFrom-Json
-  Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
-}
-catch {
-  Write-Error "Failed to load configuration: $($_.Exception.Message)"
-  exit 1
+else {
+  # Load configuration from file
+  if (-not (Test-Path -Path $ConfigPath)) {
+    Write-Error "Configuration file not found: $ConfigPath"
+    Write-Host "Please ensure your configuration file exists or run with -ConfigPath parameter, or use -ConfigFromEnv to load from environment variable."
+    exit 1
+  }
+  
+  try {
+    $config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+    Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
+  }
+  catch {
+    Write-Error "Failed to load configuration: $($_.Exception.Message)"
+    exit 1
+  }
 }
 
 # Override configuration with parameters if provided
@@ -202,7 +235,9 @@ try {
         
     # Connect to Fabric for discovery
     if ($config.ServicePrincipal.AppId -and $config.ServicePrincipal.AppSecret -and $config.ServicePrincipal.TenantId) {
-      Connect-FabricAccount -TenantId $config.ServicePrincipal.TenantId -ServicePrincipalId $config.ServicePrincipal.AppId -ServicePrincipalSecret $config.ServicePrincipal.AppSecret
+      # Convert the secret to SecureString as required by FabricTools
+      $secureSecret = ConvertTo-SecureString -String $config.ServicePrincipal.AppSecret -AsPlainText -Force
+      Connect-FabricAccount -TenantId $config.ServicePrincipal.TenantId -ServicePrincipalId $config.ServicePrincipal.AppId -ServicePrincipalSecret $secureSecret
     }
     else {
       Connect-FabricAccount
@@ -233,7 +268,14 @@ try {
   }
   else {
     # Execute the actual archive process
-    Start-FABFabricArchiveProcess -ConfigPath $ConfigPath -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
+    if ($ConfigFromEnv) {
+      # When using environment variable, pass the config object directly
+      Start-FABFabricArchiveProcess -Config $config -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
+    }
+    else {
+      # When using config file, pass the file path
+      Start-FABFabricArchiveProcess -ConfigPath $ConfigPath -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
+    }
   }
     
   Write-Host "`n$ScriptName completed successfully!" -ForegroundColor Green
@@ -256,5 +298,5 @@ finally {
 
 #endregion
 
-Write-Host "=" * 50
+Write-Host ("=" * 50)
 Write-Host "Archive process completed at $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Green
