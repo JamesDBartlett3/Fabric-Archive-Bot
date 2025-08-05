@@ -35,20 +35,20 @@ try {
   
   # Check if this looks like a Fabric Archive Bot configuration file
   if (-not ($ConfigContent.PSObject.Properties['ServicePrincipal'] -or 
-      $ConfigContent.PSObject.Properties['ExportSettings'] -or
+      $ConfigContent.PSObject.Properties['AppSecret'] -or
       $ConfigContent.PSObject.Properties['TenantId'] -or
       $ConfigContent.PSObject.Properties['AppId'])) {
     Write-Error "The specified file does not appear to be a valid Fabric Archive Bot configuration file."
-    Write-Host "Expected to find ServicePrincipal, ExportSettings, TenantId, or AppId properties."
+    Write-Host "Expected to find ServicePrincipal, AppSecret, TenantId, or AppId properties."
     exit 1
   }
   
   # Determine the version
   $ConfigVersion = if ($ConfigContent.PSObject.Properties['Version']) { 
-    $ConfigContent.Version 
+    $ConfigContent.Version
   }
   else { 
-    "v1.0" 
+    "v1.0"
   }
   
   # Check if the ServicePrincipal has been properly configured
