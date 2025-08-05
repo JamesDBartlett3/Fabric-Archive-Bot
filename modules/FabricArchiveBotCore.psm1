@@ -153,8 +153,11 @@ function Initialize-FABFabricConnection {
     
   try {
     if ($Config.ServicePrincipal.AppId -and $Config.ServicePrincipal.AppSecret -and $Config.ServicePrincipal.TenantId) {
+      # Convert the secret to SecureString as required by FabricTools
+      $secureSecret = ConvertTo-SecureString -String $Config.ServicePrincipal.AppSecret -AsPlainText -Force
+      
       # Use Service Principal authentication with FabricTools
-      Connect-FabricAccount -TenantId $Config.ServicePrincipal.TenantId -ServicePrincipalId $Config.ServicePrincipal.AppId -ServicePrincipalSecret $Config.ServicePrincipal.AppSecret
+      Connect-FabricAccount -TenantId $Config.ServicePrincipal.TenantId -ServicePrincipalId $Config.ServicePrincipal.AppId -ServicePrincipalSecret $secureSecret
     }
     else {
       # Use interactive authentication
@@ -282,7 +285,11 @@ function Confirm-FABConfigurationCompatibility {
   # Ensure ItemTypes exists in ExportSettings
   if (-not $Config.ExportSettings.PSObject.Properties['ItemTypes']) {
     Write-Warning "ItemTypes not found in ExportSettings. Using default item types."
-    $Config.ExportSettings | Add-Member -MemberType NoteProperty -Name 'ItemTypes' -Value @("Report", "SemanticModel", "Notebook", "SparkJobDefinition")
+    $Config.ExportSettings | Add-Member -MemberType NoteProperty -Name 'ItemTypes' -Value @(
+      "Report", "SemanticModel", "Notebook", "SparkJobDefinition", "DataPipeline", 
+      "Lakehouse", "Warehouse", "SQLEndpoint", "Eventhouse", "KQLDatabase", 
+      "Eventstream", "KQLDashboard", "KQLQueryset"
+    )
   }
   
   return $Config
@@ -421,34 +428,29 @@ function Export-FABFabricItemsAdvanced {
   if ($enableParallelProcessing -and $allItemJobs.Count -gt 1) {
     Write-Host "Processing $($allItemJobs.Count) items in parallel across all workspaces..." -ForegroundColor Green
     
-    # Capture the rate limiting function definition for parallel execution
-    # This is critical because parallel threads run in isolated runspaces and don't have access
-    # to functions defined in the parent module unless explicitly passed
-    $rateLimitedOperationFunction = ${function:Invoke-FABRateLimitedOperation}
+    # Get the rate limiting function definition dynamically for parallel execution
+    $rateLimitedOperationFunction = Get-Command Invoke-FABRateLimitedOperation
+    $rateLimitedOperationFunctionText = $rateLimitedOperationFunction.Definition
     
     $allItemJobs | ForEach-Object -Parallel {
       $itemJob = $_
       $Config = $using:Config
-      $InvokeRateLimitedOperation = $using:rateLimitedOperationFunction
+      $functionText = $using:rateLimitedOperationFunctionText
       
       try {
         # Import FabricTools module in parallel thread
         Import-Module -Name FabricTools -Force
         
         # Define the rate limiting function in this thread scope
-        ${function:Invoke-FABRateLimitedOperation} = $InvokeRateLimitedOperation
+        $functionDefinition = "function Invoke-FABRateLimitedOperation { $functionText }"
+        Invoke-Expression $functionDefinition
         
         $threadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
         Write-Host "Exporting item '$($itemJob.Item.displayName)' from workspace '$($itemJob.WorkspaceInfo.displayName)' (Thread: $threadId)"
         
-        # Verify function is available before use
-        if (-not (Get-Command Invoke-FABRateLimitedOperation -ErrorAction SilentlyContinue)) {
-          throw "Rate limiting function not available in parallel thread"
-        }
-        
         # Export the item with rate limiting
         Invoke-FABRateLimitedOperation -Operation {
-          Export-FabricItem -WorkspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
+          Export-FabricItem -workspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
         } -Config $Config -OperationName "Export-FabricItem-$($itemJob.Item.id)"
         
         Write-Host "  ✓ Completed: '$($itemJob.Item.displayName)' (Thread: $threadId)" -ForegroundColor Green
@@ -475,7 +477,7 @@ function Export-FABFabricItemsAdvanced {
         Write-Host "  - Exporting: $($itemJob.Item.displayName)"
         
         Invoke-FABRateLimitedOperation -Operation {
-          Export-FabricItem -WorkspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
+          Export-FabricItem -workspaceId $itemJob.WorkspaceId -itemID $itemJob.Item.id -path $itemJob.WorkspaceFolder
         } -Config $Config -OperationName "Export-FabricItem-$($itemJob.Item.id)"
       }
       catch {
@@ -549,8 +551,11 @@ function Start-FABFabricArchiveProcess {
     #>
   [CmdletBinding()]
   param(
-    [Parameter()]
+    [Parameter(ParameterSetName = 'ConfigPath')]
     [string]$ConfigPath = ".\FabricArchiveBot_Config.json",
+    
+    [Parameter(ParameterSetName = 'ConfigObject')]
+    [PSCustomObject]$Config,
     
     [Parameter()]
     [switch]$UseParallelProcessing,
@@ -564,34 +569,42 @@ function Start-FABFabricArchiveProcess {
     throw "FabricTools module is required but not available"
   }
     
-  # Load configuration
-  $config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+  # Load configuration based on parameter set
+  if ($PSCmdlet.ParameterSetName -eq 'ConfigObject') {
+    # Configuration object was passed directly
+    Write-Host "Using provided configuration object" -ForegroundColor Green
+  }
+  else {
+    # Load configuration from file
+    $Config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+    Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
+  }
   
   # Ensure configuration compatibility
-  $config = Confirm-FABConfigurationCompatibility -Config $config
+  $Config = Confirm-FABConfigurationCompatibility -Config $Config
     
   # Validate version compatibility
-  if ($config.Version -lt "2.0") {
-    Write-Warning "Configuration version $($config.Version) detected. Consider upgrading to v2.0 format."
+  if ($Config.Version -lt "2.0") {
+    Write-Warning "Configuration version $($Config.Version) detected. Consider upgrading to v2.0 format."
   }
     
   # Setup target folder with date hierarchy
   $date = Get-Date
-  $dateFolder = Join-Path -Path $config.ExportSettings.TargetFolder -ChildPath ("{0}\{1:D2}\{2:D2}" -f $date.Year, $date.Month, $date.Day)
+  $dateFolder = Join-Path -Path $Config.ExportSettings.TargetFolder -ChildPath ("{0}\{1:D2}\{2:D2}" -f $date.Year, $date.Month, $date.Day)
     
   if (-not (Test-Path $dateFolder)) {
     New-Item -Path $dateFolder -ItemType Directory -Force | Out-Null
   }
     
   # Start export process
-  Export-FABFabricItemsAdvanced -Config $config -TargetFolder $dateFolder -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
+  Export-FABFabricItemsAdvanced -Config $Config -TargetFolder $dateFolder -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
     
   # Cleanup old archives
-  Remove-FABOldArchives -Config $config
+  Remove-FABOldArchives -Config $Config
     
   # Send notifications if configured
-  if ($config.NotificationSettings.EnableNotifications) {
-    Send-FABArchiveNotification -Config $config -ArchiveFolder $dateFolder
+  if ($Config.NotificationSettings.EnableNotifications) {
+    Send-FABArchiveNotification -Config $Config -ArchiveFolder $dateFolder
   }
 }
 
@@ -669,5 +682,6 @@ Export-ModuleMember -Function @(
   'Confirm-FABConfigurationCompatibility',
   'Invoke-FABWorkspaceFilter',
   'Get-FABOptimalThrottleLimit',
-  'Invoke-FABRateLimitedOperation'
+  'Invoke-FABRateLimitedOperation',
+  'Export-FABItemDefinitionDirect'
 )
