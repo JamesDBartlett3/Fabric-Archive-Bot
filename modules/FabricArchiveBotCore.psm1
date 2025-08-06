@@ -390,39 +390,47 @@ function Confirm-FABConfigurationCompatibility {
   Ensures configuration compatibility between v1.0 and v2.0 formats
   
   .DESCRIPTION
-  Validates and enhances configuration to ensure all required settings are present
+  Validates and enhances configuration to ensure all required settings are present.
+  This function may modify the input $Config object in-place by adding missing properties.
   #>
   [CmdletBinding()]
   param(
     [Parameter(Mandatory = $true)]
     [PSCustomObject]$Config
   )
-  
+
+  $ItemTypes = @(
+    "Report", "SemanticModel", "Notebook", "SparkJobDefinition", "DataPipeline", 
+    "SQLEndpoint", "Eventhouse", "Eventstream", "KQLDatabase", "KQLDashboard", "KQLQueryset"
+  )
+  $WorkspaceFilter = "(type eq 'Workspace') and (state eq 'Active')"
+
   # Ensure ExportSettings exists
   if (-not $Config.PSObject.Properties['ExportSettings']) {
     Write-Warning "ExportSettings not found in configuration. Adding default settings."
+    $defaultTargetFolder = ".\Workspaces"
+    # Optionally resolve to absolute path for clarity
+    if ($defaultTargetFolder -notmatch '^[a-zA-Z]:\\') {
+      $defaultTargetFolder = (Resolve-Path $defaultTargetFolder).Path
+    }
     $Config | Add-Member -MemberType NoteProperty -Name 'ExportSettings' -Value ([PSCustomObject]@{
-        TargetFolder    = ".\Workspaces"
-        RetentionDays   = 30
-        WorkspaceFilter = "(type eq 'Workspace') and (state eq 'Active')"
-        ItemTypes       = @("Report", "SemanticModel", "Notebook", "SparkJobDefinition")
-      })
+      TargetFolder    = $defaultTargetFolder
+      RetentionDays   = 30
+      WorkspaceFilter = $WorkspaceFilter
+      ItemTypes       = $ItemTypes
+    })
   }
   
   # Ensure WorkspaceFilter exists in ExportSettings
   if (-not $Config.ExportSettings.PSObject.Properties['WorkspaceFilter']) {
     Write-Warning "WorkspaceFilter not found in ExportSettings. Using default filter."
-    $Config.ExportSettings | Add-Member -MemberType NoteProperty -Name 'WorkspaceFilter' -Value "(type eq 'Workspace') and (state eq 'Active')"
+    $Config.ExportSettings | Add-Member -MemberType NoteProperty -Name 'WorkspaceFilter' -Value $WorkspaceFilter
   }
   
   # Ensure ItemTypes exists in ExportSettings
   if (-not $Config.ExportSettings.PSObject.Properties['ItemTypes']) {
     Write-Warning "ItemTypes not found in ExportSettings. Using default item types."
-    $Config.ExportSettings | Add-Member -MemberType NoteProperty -Name 'ItemTypes' -Value @(
-      "Report", "SemanticModel", "Notebook", "SparkJobDefinition", "DataPipeline", 
-      "SQLEndpoint", "Eventhouse", "KQLDatabase", 
-      "Eventstream", "KQLDashboard", "KQLQueryset"
-    )
+    $Config.ExportSettings | Add-Member -MemberType NoteProperty -Name 'ItemTypes' -Value $ItemTypes
   }
   
   return $Config
