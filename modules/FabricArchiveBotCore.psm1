@@ -805,7 +805,7 @@ Items Archived: $itemCount
 Total Size: $(($archiveSize / 1MB).ToString('F2')) MB
 Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 
-Powered by FabricPS-PBIP and Fabric Archive Bot v2.0
+Powered by FabricPS-PBIP (Credit: Rui Romano)
 "@
     
   # Implementation for Teams webhook, email, etc. would go here
