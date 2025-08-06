@@ -190,6 +190,29 @@ else {
 
 # Test FabricPS-PBIP availability and download if needed
 try {
+  # Handle potential Azure module conflicts before loading FabricPS-PBIP
+  Write-Host "Checking for Azure module conflicts..." -ForegroundColor Cyan
+  
+  # Get all loaded Azure modules
+  $loadedAzModules = Get-Module -Name "Az.*"
+  if ($loadedAzModules) {
+    Write-Host "Found loaded Azure modules that may cause conflicts: $($loadedAzModules.Name -join ', ')" -ForegroundColor Yellow
+    Write-Host "Removing all Azure modules to prevent assembly conflicts..." -ForegroundColor Yellow
+    
+    # Remove all Azure modules
+    $loadedAzModules | Remove-Module -Force -ErrorAction SilentlyContinue
+    
+    # Force garbage collection to help clear assemblies
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+    [System.GC]::Collect()
+    
+    Write-Host "Azure modules cleared successfully" -ForegroundColor Green
+  }
+  else {
+    Write-Host "No conflicting Azure modules found" -ForegroundColor Green
+  }
+
   # Ensure NuGet package provider is available (required for FabricPS-PBIP dependencies)
   if (-not ((Get-PackageProvider).Name -contains 'NuGet')) {
     Write-Host "Registering NuGet package provider..." -ForegroundColor Yellow

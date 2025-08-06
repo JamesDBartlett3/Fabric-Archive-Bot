@@ -169,18 +169,68 @@ function Initialize-FABFabricConnection {
   )
     
   try {
+    # Handle Az.Accounts module loading conflicts more aggressively
+    Write-Host "Initializing Fabric connection..." -ForegroundColor Gray
+    
+    # Remove all Azure modules to clear conflicts
+    Write-Host "Clearing Azure module conflicts..." -ForegroundColor Yellow
+    $azModules = Get-Module -Name "Az.*"
+    if ($azModules) {
+      Write-Host "Removing existing Azure modules: $($azModules.Name -join ', ')" -ForegroundColor Yellow
+      $azModules | Remove-Module -Force -ErrorAction SilentlyContinue
+    }
+    
+    # Clear any loaded assemblies (best effort)
+    try {
+      [System.GC]::Collect()
+      [System.GC]::WaitForPendingFinalizers()
+    }
+    catch {
+      # GC operations might fail, but continue anyway
+    }
+    
+    # Import Az.Accounts fresh
+    Write-Host "Loading Az.Accounts module..." -ForegroundColor Gray
+    try {
+      Import-Module -Name "Az.Accounts" -Force -Global -ErrorAction Stop
+      Write-Host "Az.Accounts module loaded successfully" -ForegroundColor Green
+    }
+    catch {
+      Write-Warning "Failed to load Az.Accounts: $($_.Exception.Message)"
+      Write-Host "Attempting alternative module loading strategy..." -ForegroundColor Yellow
+      
+      # Try loading with minimal scope
+      try {
+        Import-Module -Name "Az.Accounts" -Scope Global -ErrorAction Stop
+        Write-Host "Az.Accounts loaded with alternative strategy" -ForegroundColor Green
+      }
+      catch {
+        Write-Error "Could not load Az.Accounts module. Please restart PowerShell and try again."
+        throw "Az.Accounts module loading failed: $($_.Exception.Message)"
+      }
+    }
+    
     if ($Config.ServicePrincipal.AppId -and $Config.ServicePrincipal.AppSecret -and $Config.ServicePrincipal.TenantId) {
       # Use Service Principal authentication with FabricPS-PBIP
+      Write-Host "Authenticating with Service Principal..." -ForegroundColor Gray
       Set-FabricAuthToken -servicePrincipalId $Config.ServicePrincipal.AppId -servicePrincipalSecret $Config.ServicePrincipal.AppSecret -tenantId $Config.ServicePrincipal.TenantId
     }
     else {
       # Use interactive authentication
+      Write-Host "Using interactive authentication..." -ForegroundColor Gray
       Set-FabricAuthToken
     }
+    
+    Write-Host "Fabric connection established successfully" -ForegroundColor Green
     return $true
   }
   catch {
     Write-Error "Failed to connect to Fabric: $($_.Exception.Message)"
+    Write-Host "Troubleshooting tips:" -ForegroundColor Yellow
+    Write-Host "1. Restart PowerShell to clear all module conflicts" -ForegroundColor Yellow
+    Write-Host "2. Run: Get-Module Az.* | Remove-Module -Force" -ForegroundColor Yellow
+    Write-Host "3. Check for multiple Az module versions: Get-Module Az.* -ListAvailable" -ForegroundColor Yellow
+    Write-Host "4. Consider uninstalling old Azure PowerShell modules" -ForegroundColor Yellow
     return $false
   }
 }
@@ -619,28 +669,29 @@ function Export-FABFabricItemsAdvanced {
     }
   }
   
-  # Generate metadata for all workspaces after item processing is complete
-  Write-Host "Generating workspace metadata files..." -ForegroundColor Cyan
-  foreach ($workspaceData in $allWorkspaceData) {
-    try {
-      Export-FABWorkspaceMetadata -WorkspaceId $workspaceData.WorkspaceId -TargetFolder $workspaceData.WorkspaceFolder -Config $Config
-      Write-Host "  ✓ Metadata generated for: $($workspaceData.WorkspaceInfo.displayName)" -ForegroundColor Green
-    }
-    catch {
-      Write-Error "Failed to generate metadata for workspace '$($workspaceData.WorkspaceInfo.displayName)': $($_.Exception.Message)"
-    }
+  # Generate workspace metadata after item processing is complete
+  Write-Host "Generating workspace metadata..." -ForegroundColor Cyan
+  try {
+    Export-FABWorkspaceMetadata -AllWorkspaceData $allWorkspaceData -TargetFolder $TargetFolder -Config $Config
+    Write-Host "  ✓ Workspace metadata generated successfully" -ForegroundColor Green
+  }
+  catch {
+    Write-Error "Failed to generate workspace metadata: $($_.Exception.Message)"
   }
 }
 
 function Export-FABWorkspaceMetadata {
   <#
     .SYNOPSIS
-    Exports enhanced metadata for a workspace using FabricPS-PBIP capabilities
+    Exports metadata for all workspaces using FabricPS-PBIP capabilities
+    
+    .DESCRIPTION
+    Creates a single JSON file containing metadata for all exported workspaces and items
     #>
   [CmdletBinding()]
   param(
     [Parameter(Mandatory = $true)]
-    [string]$WorkspaceId,
+    [array]$AllWorkspaceData,
         
     [Parameter(Mandatory = $true)]
     [string]$TargetFolder,
@@ -649,35 +700,52 @@ function Export-FABWorkspaceMetadata {
     [PSCustomObject]$Config
   )
     
-  $metadata = @{
+  # Build metadata structure
+  $consolidatedMetadata = @{
     ExportTimestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
-    WorkspaceInfo   = Invoke-FABRateLimitedOperation -Operation {
-      Get-FABFabricWorkspaceById -WorkspaceId $WorkspaceId
-    } -Config $Config -OperationName "Get-FabricWorkspace-Metadata-$WorkspaceId"
-    Items           = Invoke-FABRateLimitedOperation -Operation {
-      Get-FABFabricItemsByWorkspace -WorkspaceId $WorkspaceId
-    } -Config $Config -OperationName "Get-FabricItem-Metadata-$WorkspaceId"
-    ExportConfig    = $Config.ExportSettings
+    ExportSummary = @{
+      TotalWorkspaces = $AllWorkspaceData.Count
+      TotalItems = ($AllWorkspaceData | ForEach-Object { $_.FilteredItems.Count } | Measure-Object -Sum).Sum
+      ExportedItemTypes = $Config.ExportSettings.ItemTypes
+      WorkspaceFilter = $Config.ExportSettings.WorkspaceFilter
+    }
+    ExportConfig = $Config.ExportSettings
+    Workspaces = @()
   }
+  
+  # Add detailed information for each workspace
+  foreach ($workspaceData in $AllWorkspaceData) {
+    $workspaceMetadata = @{
+      WorkspaceInfo = $workspaceData.WorkspaceInfo
+      Items = $workspaceData.Items
+      FilteredItems = $workspaceData.FilteredItems
+      ExportedItemCount = $workspaceData.FilteredItems.Count
+      ItemTypes = ($workspaceData.FilteredItems | Group-Object -Property type | ForEach-Object { @{ Type = $_.Name; Count = $_.Count } })
+    }
     
-  # Add advanced metadata if enabled
-  if ($Config.AdvancedFeatures.EnableUsageMetrics) {
-    try {
-      # Usage metrics functionality not yet implemented for FabricPS-PBIP
-      Write-Warning "Usage metrics export not yet supported with FabricPS-PBIP module"
-      $metadata.UsageMetrics = @{
-        Note      = "Usage metrics not available with FabricPS-PBIP"
-        Timestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
+    # Add advanced metadata if enabled
+    if ($Config.PSObject.Properties['AdvancedFeatures'] -and $Config.AdvancedFeatures.PSObject.Properties['EnableUsageMetrics'] -and $Config.AdvancedFeatures.EnableUsageMetrics) {
+      try {
+        # Usage metrics functionality not yet implemented for FabricPS-PBIP
+        Write-Verbose "Usage metrics export not yet supported with FabricPS-PBIP module"
+        $workspaceMetadata.UsageMetrics = @{
+          Note = "Usage metrics not available with FabricPS-PBIP"
+          Timestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
+        }
+      }
+      catch {
+        Write-Warning "Could not retrieve usage metrics for workspace $($workspaceData.WorkspaceInfo.displayName): $($_.Exception.Message)"
       }
     }
-    catch {
-      Write-Warning "Could not retrieve usage metrics for workspace $WorkspaceId : $($_.Exception.Message)"
-    }
+    
+    $consolidatedMetadata.Workspaces += $workspaceMetadata
   }
     
   # Export metadata as JSON
-  $metadataPath = Join-Path -Path $TargetFolder -ChildPath "workspace-metadata.json"
-  $metadata | ConvertTo-Json -Depth 10 | Out-File -FilePath $metadataPath -Encoding UTF8
+  $metadataPath = Join-Path -Path $TargetFolder -ChildPath "fabric-archive-metadata.json"
+  $consolidatedMetadata | ConvertTo-Json -Depth 10 | Out-File -FilePath $metadataPath -Encoding UTF8
+  
+  Write-Host "Metadata saved to: $metadataPath" -ForegroundColor Gray
 }
 
 function Start-FABFabricArchiveProcess {
