@@ -79,15 +79,12 @@ catch {
   exit 1
 }
 
-# Load the raw config content for the environment variable
-$ConfigObject = Get-Content -Path $ConfigPath
-
 if ($ConfigVersion -eq "v1.0") {
   Write-Host "Consider migrating to Fabric Archive Bot v2.0 using: .\helpers\ConvertTo-FabricArchiveBotV2.ps1" -ForegroundColor Yellow
 }
 
-# Remove all new lines, carriage returns, and whitespace from the ConfigObject
-$ConfigObject = $ConfigObject -replace '\r\n', '' -replace '\n', '' -replace '\r', '' -replace '\s', ''
+# Convert to compact JSON format (preserves spaces within quoted strings)
+$ConfigObject = ($ConfigContent | ConvertTo-Json -Depth 10 -Compress)
 
 # Set the FabricArchiveBot_ConfigObject user environment variable
 [System.Environment]::SetEnvironmentVariable("FabricArchiveBot_ConfigObject", $ConfigObject, "User")
