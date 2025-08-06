@@ -21,9 +21,7 @@
       "SemanticModel",
       "Notebook",
       "SparkJobDefinition",
-      "DataPipeline",
-      "Lakehouse",
-      "Warehouse"
+      "DataPipeline"
     ],
     "ExportFormats": ["PBIP", "TMDL", "JSON"],
     "UseCompression": true,

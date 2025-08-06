@@ -420,7 +420,7 @@ function Confirm-FABConfigurationCompatibility {
     Write-Warning "ItemTypes not found in ExportSettings. Using default item types."
     $Config.ExportSettings | Add-Member -MemberType NoteProperty -Name 'ItemTypes' -Value @(
       "Report", "SemanticModel", "Notebook", "SparkJobDefinition", "DataPipeline", 
-      "Lakehouse", "Warehouse", "SQLEndpoint", "Eventhouse", "KQLDatabase", 
+      "SQLEndpoint", "Eventhouse", "KQLDatabase", 
       "Eventstream", "KQLDashboard", "KQLQueryset"
     )
   }
@@ -703,24 +703,24 @@ function Export-FABWorkspaceMetadata {
   # Build metadata structure
   $consolidatedMetadata = @{
     ExportTimestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
-    ExportSummary = @{
-      TotalWorkspaces = $AllWorkspaceData.Count
-      TotalItems = ($AllWorkspaceData | ForEach-Object { $_.FilteredItems.Count } | Measure-Object -Sum).Sum
+    ExportSummary   = @{
+      TotalWorkspaces   = $AllWorkspaceData.Count
+      TotalItems        = ($AllWorkspaceData | ForEach-Object { $_.FilteredItems.Count } | Measure-Object -Sum).Sum
       ExportedItemTypes = $Config.ExportSettings.ItemTypes
-      WorkspaceFilter = $Config.ExportSettings.WorkspaceFilter
+      WorkspaceFilter   = $Config.ExportSettings.WorkspaceFilter
     }
-    ExportConfig = $Config.ExportSettings
-    Workspaces = @()
+    ExportConfig    = $Config.ExportSettings
+    Workspaces      = @()
   }
   
   # Add detailed information for each workspace
   foreach ($workspaceData in $AllWorkspaceData) {
     $workspaceMetadata = @{
-      WorkspaceInfo = $workspaceData.WorkspaceInfo
-      Items = $workspaceData.Items
-      FilteredItems = $workspaceData.FilteredItems
+      WorkspaceInfo     = $workspaceData.WorkspaceInfo
+      Items             = $workspaceData.Items
+      FilteredItems     = $workspaceData.FilteredItems
       ExportedItemCount = $workspaceData.FilteredItems.Count
-      ItemTypes = ($workspaceData.FilteredItems | Group-Object -Property type | ForEach-Object { @{ Type = $_.Name; Count = $_.Count } })
+      ItemTypes         = ($workspaceData.FilteredItems | Group-Object -Property type | ForEach-Object { @{ Type = $_.Name; Count = $_.Count } })
     }
     
     # Add advanced metadata if enabled
@@ -729,7 +729,7 @@ function Export-FABWorkspaceMetadata {
         # Usage metrics functionality not yet implemented for FabricPS-PBIP
         Write-Verbose "Usage metrics export not yet supported with FabricPS-PBIP module"
         $workspaceMetadata.UsageMetrics = @{
-          Note = "Usage metrics not available with FabricPS-PBIP"
+          Note      = "Usage metrics not available with FabricPS-PBIP"
           Timestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
         }
       }
