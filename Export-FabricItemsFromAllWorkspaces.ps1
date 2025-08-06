@@ -88,8 +88,9 @@ Param(
 
 # Requires PowerShell 7 or later
 if ($PSVersionTable.PSVersion.Major -lt 7) {
-  Write-Error 'This script requires PowerShell 7 or later.'
-  Exit
+  Write-Error 'This script requires PowerShell 7 or later. Please upgrade to PowerShell 7+ and try again.'
+  Write-Host "Download PowerShell 7+ from: https://github.com/PowerShell/PowerShell/releases" -ForegroundColor Yellow
+  exit 1
 }
 
 # If NuGet package provider is not installed, install it

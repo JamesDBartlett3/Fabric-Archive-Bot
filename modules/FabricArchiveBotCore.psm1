@@ -414,16 +414,10 @@ function Export-FABFabricItemsAdvanced {
     throw "Failed to initialize Fabric connection"
   }
   
-  # Determine if parallel processing should be enabled
+  # Determine if parallel processing should be enabled (PowerShell 7+ is required)
   $enableParallelProcessing = $UseParallelProcessing.IsPresent -or 
   ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ParallelProcessing'] -and $Config.FabricPSPBIPSettings.ParallelProcessing) -or
-  ($PSVersionTable.PSVersion.Major -ge 7 -and -not $UseParallelProcessing.IsPresent)
-  
-  # Check PowerShell version for parallel processing
-  if ($enableParallelProcessing -and $PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Warning "Parallel processing requires PowerShell 7+. Falling back to sequential processing."
-    $enableParallelProcessing = $false
-  }
+  (-not $UseParallelProcessing.IsPresent)
   
   # Get optimal throttle limit
   $actualThrottleLimit = Get-FABOptimalThrottleLimit -OverrideThrottleLimit $ThrottleLimit -Config $Config

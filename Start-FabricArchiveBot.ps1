@@ -3,7 +3,7 @@
   Starts the Fabric Archive Bot to export all items from Fabric/Power BI workspaces
 
 .DESCRIPTION
-  This is the main entry point for Fabric Archive Bot v2.0, enhanced with FabricPS-PBIP integration.
+  This is the main entry point for Fabric Archive Bot v2.0, powered by FabricPS-PBIP (Credit: Rui Romano).
   Provides advanced features like parallel processing, enhanced metadata export, 
   multiple export formats, comprehensive monitoring, and configurable workspace filtering.
 
@@ -20,7 +20,7 @@
   Override the target folder from configuration.
 
 .PARAMETER UseParallelProcessing
-  Enable parallel processing for faster exports (requires PowerShell 7+).
+  Enable parallel processing for faster exports.
 
 .PARAMETER ThrottleLimit
   Maximum number of concurrent workspace processing threads. Defaults to CPU core count.
@@ -47,7 +47,7 @@
 .EXAMPLE
   .\Start-FabricArchiveBot.ps1 -ConfigFromEnv
 
-  Runs using configuration loaded from the FabricArchiveBot_ConfigObject environment variable.
+  Runs using configuration loaded from the FabricArchiveBot_ConfigObject environment variable. Note: This requires the environment variable to be set up beforehand (Tip: Use the provided Set-FabricArchiveBotUserEnvironmentVariable.ps1 script).
 
 .EXAMPLE
   .\Start-FabricArchiveBot.ps1 -WhatIf
@@ -66,7 +66,7 @@
   [FabricPS-PBIP Module](https://github.com/microsoft/Analysis-Services/tree/master/pbidevmode/fabricps-pbip)
 
 .NOTES
-  Requires PowerShell 7+ for optimal performance
+  Requires PowerShell 7+
   Requires FabricPS-PBIP module (will be downloaded automatically if missing)
   Falls back to v1.0 functionality if FabricPS-PBIP is unavailable
 #>
@@ -105,10 +105,11 @@ Write-Host ("=" * 50)
 
 #region Prerequisites and Validation
 
-# Check PowerShell version
-if ($PSVersionTable.PSVersion.Major -lt 7 -and $UseParallelProcessing) {
-  Write-Warning "Parallel processing requires PowerShell 7+. Disabling parallel processing."
-  $UseParallelProcessing = $false
+# Check PowerShell version - require PowerShell 7+
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+  Write-Error "This solution requires PowerShell 7 or later. Please upgrade to PowerShell 7+ and try again."
+  Write-Host "Download PowerShell 7+ from: https://github.com/PowerShell/PowerShell/releases" -ForegroundColor Yellow
+  exit 1
 }
 
 # Validate configuration source and load configuration
