@@ -53,3 +53,6 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **Inline Comments**: Provide clear comments explaining complex logic, especially around module loading and configuration handling
 - **User Guides**: Maintain comprehensive documentation for setup, configuration, and troubleshooting
 - **Change Management**: Document breaking changes and provide migration guidance
+
+### Out-of-Scope Considerations
+- **Version 1.0**: Do not modify or reference the legacy version 1.0 codebase (Export-FabricItemsFromAllWorkspaces.ps1). This file must remain untouched to ensure compatibility with existing deployments.
