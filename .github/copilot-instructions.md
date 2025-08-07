@@ -21,9 +21,11 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **JSON Compression**: Use PowerShell's `ConvertTo-Json -Compress` for environment variable storage rather than manual string manipulation
 
 ### Supported Item Types
-- **Exclude Unsupported Types**: Do not attempt to export Lakehouse or Warehouse items as they are not supported by the export APIs
-- **Focus on Core Types**: Prioritize Report, SemanticModel, Dashboard, Dataflow, and other well-supported item types
-- **Graceful Handling**: Provide clear feedback when unsupported item types are encountered
+- **Dynamic Detection**: Automatically determine supported item types by querying Microsoft Learn documentation structure
+- **Future-Proof**: Automatically adapt when Microsoft adds support for new item types to the Get Item Definition API
+- **Web Scraping Strategy**: Query the official table of contents JSON from Microsoft Fabric REST API documentation
+- **Graceful Handling**: Provide clear feedback when unsupported item types are encountered or when dynamic detection fails
+- **Fallback Mechanism**: Use hardcoded list of known supported types when web service is unavailable
 
 ### Error Handling and Reliability
 - **Azure Module Conflicts**: Implement proactive detection and resolution of Az.Accounts assembly loading conflicts
