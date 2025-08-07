@@ -384,7 +384,7 @@ function Invoke-FABWorkspaceFilter {
   }
 }
 
-function Get-FABSupportedItemTypesFromToc {
+function Get-FABSupportedItemTypes {
   <#
   .SYNOPSIS
   Dynamically retrieves supported Fabric item types from Microsoft Learn documentation
@@ -404,7 +404,7 @@ function Get-FABSupportedItemTypesFromToc {
   How many hours to cache results (default: 24)
   
   .EXAMPLE
-  $supportedTypes = Get-FABSupportedItemTypesFromToc
+  $supportedTypes = Get-FABSupportedItemTypes
   Write-Host "Supported item types: $($supportedTypes -join ', ')"
   #>
   [CmdletBinding()]
@@ -577,7 +577,7 @@ function Confirm-FABConfigurationCompatibility {
 
   # Get supported item types dynamically from Microsoft Learn
   Write-Verbose "Retrieving supported item types from Microsoft Learn documentation..."
-  $ItemTypes = Get-FABSupportedItemTypesFromToc -UseCache
+  $ItemTypes = Get-FABSupportedItemTypes -UseCache
   
   # Filter out any user-configured item types that are not supported
   if ($Config.PSObject.Properties['ExportSettings'] -and 
@@ -1094,7 +1094,9 @@ Export-ModuleMember -Function @(
   'Get-FABFabricWorkspaces',
   'Get-FABFabricWorkspaceById',
   'Get-FABFabricItemsByWorkspace',
-  'Get-FABSupportedItemTypesFromToc',
+  'Get-FABSupportedItemTypes',
   'Find-FABDefinitionEndpoints',
-  'Get-FABFallbackItemTypes'
+  'Get-FABFallbackItemTypes',
+  'Test-FABFabricPSPBIPAvailability',
+  'Initialize-FABFabricConnection'
 )
