@@ -384,6 +384,181 @@ function Invoke-FABWorkspaceFilter {
   }
 }
 
+function Get-FABSupportedItemTypesFromToc {
+  <#
+  .SYNOPSIS
+  Dynamically retrieves supported Fabric item types from Microsoft Learn documentation
+  
+  .DESCRIPTION
+  Queries the official Microsoft Fabric REST API table of contents JSON to determine
+  which item types support the "Get Item Definition" endpoint. This ensures the bot
+  automatically adapts to newly supported item types.
+  
+  .PARAMETER TocUrl
+  The URL to the Microsoft Fabric REST API table of contents JSON file
+  
+  .PARAMETER UseCache
+  Whether to use cached results if available
+  
+  .PARAMETER CacheHours
+  How many hours to cache results (default: 24)
+  
+  .EXAMPLE
+  $supportedTypes = Get-FABSupportedItemTypesFromToc
+  Write-Host "Supported item types: $($supportedTypes -join ', ')"
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter()]
+    [string]$TocUrl = "https://learn.microsoft.com/en-us/rest/api/fabric/toc.json",
+    
+    [Parameter()]
+    [switch]$UseCache,
+    
+    [Parameter()]
+    [int]$CacheHours = 24
+  )
+  
+  $cacheFile = Join-Path $env:TEMP "FABSupportedItemTypes.json"
+  $cacheValidUntil = (Get-Date).AddHours(-$CacheHours)
+  
+  try {
+    # Check cache first if requested
+    if ($UseCache -and (Test-Path $cacheFile)) {
+      $cacheInfo = Get-Item $cacheFile
+      if ($cacheInfo.LastWriteTime -gt $cacheValidUntil) {
+        Write-Verbose "Using cached supported item types from $cacheFile"
+        $cached = Get-Content $cacheFile -Raw | ConvertFrom-Json
+        if ($cached -and $cached.Count -gt 0) {
+          return $cached
+        }
+      }
+    }
+    
+    Write-Verbose "Fetching supported item types from $TocUrl"
+    
+    # Fetch the TOC JSON
+    $response = Invoke-RestMethod -Uri $TocUrl -Method Get -ErrorAction Stop
+    
+    # Find all "Get {xyz} Definition" entries and extract parent hierarchy
+    $supportedTypes = @()
+    if ($response.PSObject.Properties['items'] -and $response.items) {
+      foreach ($item in $response.items) {
+        $supportedTypes += Find-FABDefinitionEndpoints -Node $item -ParentPath @()
+      }
+    }
+    else {
+      # Fallback: treat response as a node directly
+      $supportedTypes = Find-FABDefinitionEndpoints -Node $response -ParentPath @()
+    }
+    
+    # Clean and validate results
+    $cleanTypes = $supportedTypes | Where-Object { $_ -and $_.Trim() } | 
+    ForEach-Object { $_.Trim() } | 
+    Where-Object { $_ -notin @("Core", "Admin", "Spark") } |  # Filter out non-item types
+    Sort-Object -Unique
+    
+    # Validate against known good types
+    $knownTypes = @("Report", "SemanticModel", "Dataflow", "Notebook", "Environment")
+    $hasKnownTypes = $cleanTypes | Where-Object { $_ -in $knownTypes }
+    
+    if ($hasKnownTypes.Count -eq 0) {
+      Write-Warning "No known item types found in TOC response. Using fallback list."
+      return Get-FABFallbackItemTypes
+    }
+    
+    Write-Verbose "Found $($cleanTypes.Count) supported item types: $($cleanTypes -join ', ')"
+    
+    # Cache the results
+    if ($UseCache) {
+      try {
+        $cleanTypes | ConvertTo-Json -Compress | Out-File $cacheFile -Encoding UTF8
+        Write-Verbose "Cached results to $cacheFile"
+      }
+      catch {
+        Write-Warning "Failed to cache results: $($_.Exception.Message)"
+      }
+    }
+    
+    return $cleanTypes
+  }
+  catch {
+    Write-Warning "Failed to fetch supported item types from TOC: $($_.Exception.Message)"
+    return Get-FABFallbackItemTypes
+  }
+}
+
+function Find-FABDefinitionEndpoints {
+  <#
+  .SYNOPSIS
+  Recursively searches the TOC JSON structure for "Get {xyz} Definition" endpoints
+  
+  .DESCRIPTION
+  Internal helper function that walks the JSON hierarchy to find definition endpoints
+  and extracts the corresponding item type names from the parent structure.
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    $Node,
+    
+    [Parameter()]
+    [string[]]$ParentPath = @()
+  )
+  
+  $results = @()
+  
+  # Get current node title
+  $currentTitle = if ($Node.PSObject.Properties['toc_title']) { $Node.toc_title } else { "" }
+  
+  # Check if current node has a toc_title indicating a "Get {xyz} Definition" endpoint
+  if ($currentTitle -and $currentTitle -match '^Get .+ Definition$') {
+    Write-Verbose "Found potential definition endpoint: '$currentTitle', Parent path: $($ParentPath -join ' -> ')"
+    
+    # The item type should be extracted from the path
+    # Looking for pattern: ItemType -> Items -> "Get ItemType Definition"
+    if ($ParentPath.Count -ge 2 -and $ParentPath[-1] -eq "Items") {
+      $itemType = $ParentPath[-2]  # The item type is the grandparent
+      $results += $itemType
+      Write-Verbose "✓ Found supported item type: '$itemType' (from endpoint '$currentTitle')"
+    }
+    else {
+      Write-Verbose "✗ Skipped '$currentTitle' - path doesn't match expected pattern (ItemType -> Items -> Definition)"
+    }
+  }
+  
+  # Recursively search child items
+  if ($Node.PSObject.Properties['children'] -and $Node.children) {
+    foreach ($child in $Node.children) {
+      $newPath = if ($currentTitle) { $ParentPath + @($currentTitle) } else { $ParentPath }
+      $results += Find-FABDefinitionEndpoints -Node $child -ParentPath $newPath
+    }
+  }
+  
+  return $results
+}
+
+function Get-FABFallbackItemTypes {
+  <#
+  .SYNOPSIS
+  Returns a fallback list of known supported item types
+  
+  .DESCRIPTION
+  Provides a hardcoded list of item types that are known to support definition export.
+  Used when the dynamic TOC query fails.
+  #>
+  [CmdletBinding()]
+  param()
+  
+  return @(
+    "Report", "SemanticModel", "Notebook", "SparkJobDefinition", "DataPipeline", 
+    "SQLEndpoint", "Eventhouse", "Eventstream", "KQLDatabase", "KQLDashboard", 
+    "KQLQueryset", "Environment", "Dataflow", "CopyJob", "GraphQLApi", "Reflex",
+    "VariableLibrary", "MountedDataFactory", "MirroredDatabase", 
+    "MirroredAzureDatabricksCatalog", "DigitalTwinBuilder", "DigitalTwinBuilderFlow"
+  )
+}
+
 function Confirm-FABConfigurationCompatibility {
   <#
   .SYNOPSIS
@@ -392,6 +567,7 @@ function Confirm-FABConfigurationCompatibility {
   .DESCRIPTION
   Validates and enhances configuration to ensure all required settings are present.
   This function may modify the input $Config object in-place by adding missing properties.
+  Uses dynamic item type detection from Microsoft Learn documentation.
   #>
   [CmdletBinding()]
   param(
@@ -399,10 +575,29 @@ function Confirm-FABConfigurationCompatibility {
     [PSCustomObject]$Config
   )
 
-  $ItemTypes = @(
-    "Report", "SemanticModel", "Notebook", "SparkJobDefinition", "DataPipeline", 
-    "SQLEndpoint", "Eventhouse", "Eventstream", "KQLDatabase", "KQLDashboard", "KQLQueryset"
-  )
+  # Get supported item types dynamically from Microsoft Learn
+  Write-Verbose "Retrieving supported item types from Microsoft Learn documentation..."
+  $ItemTypes = Get-FABSupportedItemTypesFromToc -UseCache
+  
+  # Filter out any user-configured item types that are not supported
+  if ($Config.PSObject.Properties['ExportSettings'] -and 
+    $Config.ExportSettings.PSObject.Properties['ItemTypes'] -and 
+    $Config.ExportSettings.ItemTypes) {
+    
+    $configuredTypes = $Config.ExportSettings.ItemTypes
+    $supportedConfigured = $configuredTypes | Where-Object { $_ -in $ItemTypes }
+    $unsupportedTypes = $configuredTypes | Where-Object { $_ -notin $ItemTypes }
+    
+    if ($unsupportedTypes.Count -gt 0) {
+      Write-Warning "The following configured item types are not supported for definition export: $($unsupportedTypes -join ', ')"
+      Write-Host "Supported item types: $($ItemTypes -join ', ')" -ForegroundColor Green
+      
+      # Update configuration to remove unsupported types
+      $Config.ExportSettings.ItemTypes = $supportedConfigured
+      Write-Host "Updated configuration to use only supported types: $($supportedConfigured -join ', ')" -ForegroundColor Yellow
+    }
+  }
+  
   $WorkspaceFilter = "(type eq 'Workspace') and (state eq 'Active')"
 
   # Ensure ExportSettings exists
@@ -414,11 +609,11 @@ function Confirm-FABConfigurationCompatibility {
       $defaultTargetFolder = (Resolve-Path $defaultTargetFolder).Path
     }
     $Config | Add-Member -MemberType NoteProperty -Name 'ExportSettings' -Value ([PSCustomObject]@{
-      TargetFolder    = $defaultTargetFolder
-      RetentionDays   = 30
-      WorkspaceFilter = $WorkspaceFilter
-      ItemTypes       = $ItemTypes
-    })
+        TargetFolder    = $defaultTargetFolder
+        RetentionDays   = 30
+        WorkspaceFilter = $WorkspaceFilter
+        ItemTypes       = $ItemTypes
+      })
   }
   
   # Ensure WorkspaceFilter exists in ExportSettings
@@ -898,5 +1093,8 @@ Export-ModuleMember -Function @(
   'Export-FABItemDefinitionDirect',
   'Get-FABFabricWorkspaces',
   'Get-FABFabricWorkspaceById',
-  'Get-FABFabricItemsByWorkspace'
+  'Get-FABFabricItemsByWorkspace',
+  'Get-FABSupportedItemTypesFromToc',
+  'Find-FABDefinitionEndpoints',
+  'Get-FABFallbackItemTypes'
 )
