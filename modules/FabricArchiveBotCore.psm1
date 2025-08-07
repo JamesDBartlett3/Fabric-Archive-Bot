@@ -656,7 +656,7 @@ function Export-FABFabricItemsAdvanced {
     [string]$TargetFolder,
         
     [Parameter()]
-    [switch]$UseParallelProcessing,
+    [switch]$SerialProcessing,
     
     [Parameter()]
     [int]$ThrottleLimit = 0
@@ -668,9 +668,9 @@ function Export-FABFabricItemsAdvanced {
   }
   
   # Determine if parallel processing should be enabled (PowerShell 7+ is required)
-  $enableParallelProcessing = $UseParallelProcessing.IsPresent -or 
-  ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ParallelProcessing'] -and $Config.FabricPSPBIPSettings.ParallelProcessing) -or
-  (-not $UseParallelProcessing.IsPresent)
+  # Default to parallel processing unless explicitly disabled or config says otherwise
+  $enableParallelProcessing = (-not $SerialProcessing.IsPresent) -and
+  (-not ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ParallelProcessing'] -and -not $Config.FabricPSPBIPSettings.ParallelProcessing))
   
   # Get optimal throttle limit
   $actualThrottleLimit = Get-FABOptimalThrottleLimit -OverrideThrottleLimit $ThrottleLimit -Config $Config
@@ -965,7 +965,7 @@ function Start-FABFabricArchiveProcess {
     [PSCustomObject]$Config,
     
     [Parameter()]
-    [switch]$UseParallelProcessing,
+    [switch]$SerialProcessing,
     
     [Parameter()]
     [int]$ThrottleLimit = 0
@@ -1004,7 +1004,7 @@ function Start-FABFabricArchiveProcess {
   }
     
   # Start export process
-  Export-FABFabricItemsAdvanced -Config $Config -TargetFolder $dateFolder -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
+  Export-FABFabricItemsAdvanced -Config $Config -TargetFolder $dateFolder -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
     
   # Cleanup old archives
   Remove-FABOldArchives -Config $Config

@@ -19,8 +19,8 @@
 .PARAMETER TargetFolder
   Override the target folder from configuration.
 
-.PARAMETER UseParallelProcessing
-  Enable parallel processing for faster exports.
+.PARAMETER SerialProcessing
+  Disable parallel processing and run exports in serial mode.
 
 .PARAMETER ThrottleLimit
   Maximum number of concurrent workspace processing threads. Defaults to CPU core count.
@@ -40,9 +40,9 @@
   Runs with default configuration settings.
 
 .EXAMPLE
-  .\Start-FabricArchiveBot.ps1 -ConfigPath ".\Config-Production.json" -UseParallelProcessing
+  .\Start-FabricArchiveBot.ps1 -ConfigPath ".\Config-Production.json" -SerialProcessing
 
-  Runs with custom configuration and parallel processing enabled.
+  Runs with custom configuration and serial processing (parallel processing disabled).
 
 .EXAMPLE
   .\Start-FabricArchiveBot.ps1 -ConfigFromEnv
@@ -86,7 +86,7 @@ param(
   [string]$TargetFolder,
     
   [Parameter()]
-  [switch]$UseParallelProcessing,
+  [switch]$SerialProcessing,
     
   [Parameter()]
   [int]$ThrottleLimit = 0,
@@ -282,7 +282,7 @@ try {
   Write-Host "Starting Fabric Archive Process..." -ForegroundColor Green
   Write-Host "Target Folder: $($config.ExportSettings.TargetFolder)" -ForegroundColor Cyan
   Write-Host "Retention Days: $($config.ExportSettings.RetentionDays)" -ForegroundColor Cyan
-  Write-Host "Parallel Processing: $(if ($UseParallelProcessing) { 'Enabled' } else { 'Disabled' })" -ForegroundColor Cyan
+  Write-Host "Parallel Processing: $(if ($SerialProcessing) { 'Disabled' } else { 'Enabled (Default)' })" -ForegroundColor Cyan
     
   if ($WhatIfPreference) {
     Write-Host "WHAT-IF MODE: No actual changes will be made" -ForegroundColor Yellow
@@ -325,11 +325,11 @@ try {
     # Execute the actual archive process
     if ($ConfigFromEnv) {
       # When using environment variable, pass the config object directly
-      Start-FABFabricArchiveProcess -Config $config -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
+      Start-FABFabricArchiveProcess -Config $config -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
     }
     else {
       # When using config file, pass the file path
-      Start-FABFabricArchiveProcess -ConfigPath $ConfigPath -UseParallelProcessing:$UseParallelProcessing -ThrottleLimit $ThrottleLimit
+      Start-FABFabricArchiveProcess -ConfigPath $ConfigPath -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
     }
   }
     

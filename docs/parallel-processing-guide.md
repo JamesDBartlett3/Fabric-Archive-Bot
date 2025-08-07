@@ -35,14 +35,14 @@ Configure parallel processing in multiple ways:
 ### Runtime Parameters
 
 ```powershell
-# Enable parallel processing with default throttle limit (CPU cores)
-.\Start-FabricArchiveBot.ps1 -UseParallelProcessing
+# Parallel processing is enabled by default (no parameter needed)
+.\Start-FabricArchiveBot.ps1
 
-# Custom throttle limit
-.\Start-FabricArchiveBot.ps1 -UseParallelProcessing -ThrottleLimit 4
+# Custom throttle limit with default parallel processing
+.\Start-FabricArchiveBot.ps1 -ThrottleLimit 4
 
-# Disable parallel processing (force sequential)
-.\Start-FabricArchiveBot.ps1 -UseParallelProcessing:$false
+# Disable parallel processing (force serial processing)
+.\Start-FabricArchiveBot.ps1 -SerialProcessing
 ```
 
 ### Configuration File
@@ -163,8 +163,8 @@ Parallel item processing completed. Generating workspace metadata...
 
 ### Production High-Performance
 ```powershell
-# Maximum performance with optimal item-level parallelism
-.\Start-FabricArchiveBot.ps1 -UseParallelProcessing -ThrottleLimit 8
+# Maximum performance with optimal item-level parallelism (default behavior)
+.\Start-FabricArchiveBot.ps1 -ThrottleLimit 8
 ```
 
 ### Large Tenant Optimization
@@ -175,8 +175,8 @@ Parallel item processing completed. Generating workspace metadata...
 
 ### Legacy System Compatibility
 ```powershell
-# Force sequential processing (one item at a time)
-.\Start-FabricArchiveBot.ps1 -UseParallelProcessing:$false
+# Force serial processing (one item at a time)
+.\Start-FabricArchiveBot.ps1 -SerialProcessing
 ```
 
 ## Performance Benefits
