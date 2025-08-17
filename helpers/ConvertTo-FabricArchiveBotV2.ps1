@@ -69,8 +69,8 @@ function Find-FABConfigFile {
   }
   
   # Get the root directory (parent of helpers directory)
-  $rootPath = Split-Path $PSScriptRoot
-  $rootConfigPath = Join-Path $rootPath $FileName
+  [string]$rootPath = Split-Path $PSScriptRoot
+  [string]$rootConfigPath = Join-Path $rootPath $FileName
   
   # Check root directory first
   if (Test-Path $rootConfigPath) {
@@ -78,13 +78,13 @@ function Find-FABConfigFile {
   }
   
   # Check current directory
-  $currentConfigPath = Join-Path (Get-Location) $FileName
+  [string]$currentConfigPath = Join-Path (Get-Location) $FileName
   if (Test-Path $currentConfigPath) {
     return $currentConfigPath
   }
   
   # Check helpers directory (same as script)
-  $helperConfigPath = Join-Path $PSScriptRoot $FileName
+  [string]$helperConfigPath = Join-Path $PSScriptRoot $FileName
   if (Test-Path $helperConfigPath) {
     return $helperConfigPath
   }
@@ -109,7 +109,7 @@ function Convert-FABV1ConfigToV2 {
   )
     
   # Create v2.0 configuration structure
-  $v2Config = @{
+  [hashtable]$v2Config = @{
     Version              = "2.0"
     ServicePrincipal     = $V1Config.ServicePrincipal
     ExportSettings       = @{
@@ -167,10 +167,10 @@ function Test-FABV1Compatibility {
   }
     
   try {
-    $config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+    [PSCustomObject]$config = Get-Content -Path $ConfigPath | ConvertFrom-Json
         
     # Check required v1.0 properties
-    $requiredProperties = @('ServicePrincipal')
+    [string[]]$requiredProperties = @('ServicePrincipal')
     foreach ($prop in $requiredProperties) {
       if (-not $config.PSObject.Properties[$prop]) {
         Write-Error "Missing required property in v1.0 config: $prop"
@@ -201,18 +201,18 @@ if (-not (Test-FABV1Compatibility -ConfigPath $V1ConfigPath)) {
 }
 
 # Load v1.0 configuration
-$v1Config = Get-Content -Path $V1ConfigPath | ConvertFrom-Json
+[PSCustomObject]$v1Config = Get-Content -Path $V1ConfigPath | ConvertFrom-Json
 
 # Backup v1.0 configuration if requested
 if ($BackupV1Config) {
-  $backupPath = $V1ConfigPath.Replace('.json', '-backup.json')
+  [string]$backupPath = $V1ConfigPath.Replace('.json', '-backup.json')
   Copy-Item -Path $V1ConfigPath -Destination $backupPath
   Write-Host "V1 configuration backed up to: $backupPath" -ForegroundColor Yellow
 }
 
 # Convert to v2.0 format
 Write-Host "Converting configuration to v2.0 format..." -ForegroundColor Cyan
-$v2Config = Convert-FABV1ConfigToV2 -V1Config $v1Config
+[PSCustomObject]$v2Config = Convert-FABV1ConfigToV2 -V1Config $v1Config
 
 # Save v2.0 configuration
 $v2Config | ConvertTo-Json -Depth 10 | Out-File -FilePath $V2ConfigPath -Encoding UTF8

@@ -62,25 +62,25 @@ param(
 # Set version-specific defaults if not provided
 if (-not $TaskDescription) {
   if ($Version -eq "1") {
-    $TaskDescription = "Fabric Archive Bot v1.0 - Automatically create a daily archive of items from all Power BI/Fabric workspaces"
+    [string]$TaskDescription = "Fabric Archive Bot v1.0 - Automatically create a daily archive of items from all Power BI/Fabric workspaces"
   }
   else {
-    $TaskDescription = "Fabric Archive Bot v2.0 - Automatically create a daily archive of items from all Power BI/Fabric workspaces"
+    [string]$TaskDescription = "Fabric Archive Bot v2.0 - Automatically create a daily archive of items from all Power BI/Fabric workspaces"
   }
 }
 
 if (-not $TaskArguments) {
   if ($Version -eq "1") {
-    $TaskArguments = "-NoProfile -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -File Export-FabricItemsFromAllWorkspaces.ps1"
+    [string]$TaskArguments = "-NoProfile -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -File Export-FabricItemsFromAllWorkspaces.ps1"
   }
   else {
-    $TaskArguments = "-NoProfile -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -File Start-FabricArchiveBot.ps1"
+    [string]$TaskArguments = "-NoProfile -NoLogo -ExecutionPolicy Bypass -WindowStyle Hidden -File Start-FabricArchiveBot.ps1"
   }
 }
 
 # Validate that the target script exists
-$rootPath = Split-Path $PSScriptRoot
-$targetScript = if ($Version -eq "1") {
+[string]$rootPath = Split-Path $PSScriptRoot
+[string]$targetScript = if ($Version -eq "1") {
   Join-Path $rootPath "Export-FabricItemsFromAllWorkspaces.ps1"
 }
 else {
@@ -103,9 +103,9 @@ Write-Host "Creating scheduled task for Fabric Archive Bot v$Version.0" -Foregro
 Write-Host "Target Script: $(Split-Path -Leaf $targetScript)" -ForegroundColor Cyan
 Write-Host "Schedule: Daily at $TaskTime" -ForegroundColor Cyan
 
-$taskTrigger = New-ScheduledTaskTrigger -Daily -At $TaskTime
-$taskAction = New-ScheduledTaskAction -Execute $TaskCommand -Argument $TaskArguments -WorkingDirectory $(Split-Path $PSScriptRoot)
-$taskPrincipal = New-ScheduledTaskPrincipal -UserId $TaskUser -LogonType ServiceAccount
+[Microsoft.PowerShell.Cmdletization.Cim.CimMethodResult]$taskTrigger = New-ScheduledTaskTrigger -Daily -At $TaskTime
+[Microsoft.PowerShell.Cmdletization.Cim.CimMethodResult]$taskAction = New-ScheduledTaskAction -Execute $TaskCommand -Argument $TaskArguments -WorkingDirectory $(Split-Path $PSScriptRoot)
+[Microsoft.PowerShell.Cmdletization.Cim.CimMethodResult]$taskPrincipal = New-ScheduledTaskPrincipal -UserId $TaskUser -LogonType ServiceAccount
 
 # Register the scheduled task
 try {

@@ -6,10 +6,10 @@ param(
 )
 
 # Define the root directory
-$RootPath = Split-Path $PSScriptRoot
+[string]$RootPath = Split-Path $PSScriptRoot
 
 # Build the full path to the config file
-$ConfigPath = if ([System.IO.Path]::IsPathRooted($ConfigFile)) {
+[string]$ConfigPath = if ([System.IO.Path]::IsPathRooted($ConfigFile)) {
   $ConfigFile
 }
 else {
@@ -31,9 +31,9 @@ if (-not $ConfigPath.EndsWith(".json")) {
 
 # Load and validate the configuration file
 try {
-  $ConfigContent = Get-Content -Path $ConfigPath | ConvertFrom-Json
+  [PSCustomObject]$ConfigContent = Get-Content -Path $ConfigPath | ConvertFrom-Json
   
-  $ServicePrincipalProperty = $ConfigContent.PSObject.Properties['ServicePrincipal']
+  [System.Management.Automation.PSPropertyInfo]$ServicePrincipalProperty = $ConfigContent.PSObject.Properties['ServicePrincipal']
 
   # Check if this looks like a Fabric Archive Bot configuration file
   if (-not ($ServicePrincipalProperty -and
@@ -45,7 +45,7 @@ try {
   }
   
   # Determine the version
-  $ConfigVersion = if ($ConfigContent.PSObject.Properties['Version']) {
+  [string]$ConfigVersion = if ($ConfigContent.PSObject.Properties['Version']) {
     $ConfigContent.Version
   }
   else { 
@@ -54,7 +54,7 @@ try {
   
   # Check if the ServicePrincipal has been properly configured
   if ($ConfigContent.PSObject.Properties['ServicePrincipal']) {
-    $templateValues = @()
+    [array]$templateValues = @()
     foreach ($prop in $ConfigContent.ServicePrincipal.PSObject.Properties) {
       if ($prop.Value -is [string] -and $prop.Value.StartsWith("YOUR_")) {
         $templateValues += "ServicePrincipal.$($prop.Name) = $($prop.Value)"
@@ -84,7 +84,7 @@ if ($ConfigVersion -eq "v1.0") {
 }
 
 # Convert to compact JSON format (preserves spaces within quoted strings)
-$ConfigObject = ($ConfigContent | ConvertTo-Json -Depth 10 -Compress)
+[string]$ConfigObject = ($ConfigContent | ConvertTo-Json -Depth 10 -Compress)
 
 # Set the FabricArchiveBot_ConfigObject user environment variable
 [System.Environment]::SetEnvironmentVariable("FabricArchiveBot_ConfigObject", $ConfigObject, "User")
