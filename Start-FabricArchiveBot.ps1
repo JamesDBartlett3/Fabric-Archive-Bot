@@ -89,8 +89,8 @@ param(
 )
 
 # Script metadata
-$ScriptVersion = "2.0.0"
-$ScriptName = "Fabric Archive Bot v2.0"
+[string]$ScriptVersion = "2.0.0"
+[string]$ScriptName = "Fabric Archive Bot v2.0"
 
 Write-Host "$ScriptName - Version $ScriptVersion" -ForegroundColor Green
 Write-Host "Enhanced with FabricPS-PBIP integration" -ForegroundColor Cyan
@@ -108,7 +108,7 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 # Validate configuration source and load configuration
 if ($ConfigFromEnv) {
   # Load configuration from environment variable
-  $envConfig = [System.Environment]::GetEnvironmentVariable("FabricArchiveBot_ConfigObject", "User")
+  [string]$envConfig = [System.Environment]::GetEnvironmentVariable("FabricArchiveBot_ConfigObject", "User")
   
   if (-not $envConfig) {
     Write-Error "FabricArchiveBot_ConfigObject environment variable not found or is empty."
@@ -117,7 +117,7 @@ if ($ConfigFromEnv) {
   }
   
   try {
-    $config = $envConfig | ConvertFrom-Json
+    [PSCustomObject]$config = $envConfig | ConvertFrom-Json
     Write-Host "Configuration loaded from environment variable" -ForegroundColor Green
   }
   catch {
@@ -135,7 +135,7 @@ else {
   }
   
   try {
-    $config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+    [PSCustomObject]$config = Get-Content -Path $ConfigPath | ConvertFrom-Json
     Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
   }
   catch {
@@ -153,7 +153,7 @@ if ($TargetFolder) { $config.ExportSettings.TargetFolder = $TargetFolder }
 #region Module Management
 
 # Import core module
-$coreModulePath = Join-Path -Path $PSScriptRoot -ChildPath "modules\FabricArchiveBotCore.psm1"
+[string]$coreModulePath = Join-Path -Path $PSScriptRoot -ChildPath "modules\FabricArchiveBotCore.psm1"
 
 if (Test-Path -Path $coreModulePath) {
   Write-Host "Loading Fabric Archive Bot Core module..." -ForegroundColor Cyan
@@ -163,7 +163,7 @@ if (Test-Path -Path $coreModulePath) {
     
     # Ensure configuration compatibility now that core module is loaded
     try {
-      $config = Confirm-FABConfigurationCompatibility -Config $config
+      [PSCustomObject]$config = Confirm-FABConfigurationCompatibility -Config $config
       Write-Host "Configuration compatibility validated" -ForegroundColor Green
     }
     catch {
@@ -187,7 +187,7 @@ try {
   Write-Host "Checking for Azure module conflicts..." -ForegroundColor Cyan
   
   # Get all loaded Azure modules
-  $loadedAzModules = Get-Module -Name "Az.*"
+  [Microsoft.PowerShell.Commands.ModuleInfoGrouping[]]$loadedAzModules = Get-Module -Name "Az.*"
   if ($loadedAzModules) {
     Write-Host "Found loaded Azure modules that may cause conflicts: $($loadedAzModules.Name -join ', ')" -ForegroundColor Yellow
     Write-Host "Removing all Azure modules to prevent assembly conflicts..." -ForegroundColor Yellow
@@ -213,9 +213,9 @@ try {
   }
   
   # Define module URL and local path
-  $moduleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'
-  $moduleFileName = Split-Path -Leaf $moduleUrl
-  $localModulePath = Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName
+  [string]$moduleUrl = 'https://raw.githubusercontent.com/microsoft/Analysis-Services/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1'
+  [string]$moduleFileName = Split-Path -Leaf $moduleUrl
+  [string]$localModulePath = Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName
   
   # Download latest FabricPS-PBIP.psm1 if it doesn't exist or if we want the latest
   if (-not (Test-Path -Path $localModulePath)) {
@@ -232,7 +232,7 @@ try {
   }
   
   # Ensure required Az modules are available
-  $requiredModules = @('Az.Accounts', 'Az.Resources')
+  [string[]]$requiredModules = @('Az.Accounts', 'Az.Resources')
   foreach ($module in $requiredModules) {
     if (-not (Get-Module -Name $module -ListAvailable)) {
       Write-Host "Installing required module: $module" -ForegroundColor Yellow
@@ -274,22 +274,22 @@ try {
     }
         
     # Discovery mode - get workspaces using FabricPS-PBIP
-    $allWorkspaces = Invoke-FabricAPIRequest -Uri "workspaces" -Method Get
+    [array]$allWorkspaces = Invoke-FabricAPIRequest -Uri "workspaces" -Method Get
         
     # Apply workspace filtering based on configuration
     if ($config.ExportSettings.WorkspaceFilter) {
-      $workspaces = Invoke-FABWorkspaceFilter -Workspaces $allWorkspaces -Filter $config.ExportSettings.WorkspaceFilter
+      [array]$workspaces = Invoke-FABWorkspaceFilter -Workspaces $allWorkspaces -Filter $config.ExportSettings.WorkspaceFilter
     }
     else {
-      $workspaces = $allWorkspaces
+      [array]$workspaces = $allWorkspaces
     }
         
     Write-Host "`nWould process $($workspaces.Count) workspaces matching filter '$($config.ExportSettings.WorkspaceFilter)':" -ForegroundColor Yellow
         
     foreach ($workspace in $workspaces | Select-Object -First 10) {
       # Get items using FabricPS-PBIP API call pattern
-      $items = Invoke-FabricAPIRequest -Uri "workspaces/$($workspace.id)/items" -Method Get
-      $filteredItems = $items | Where-Object { $_.type -in $config.ExportSettings.ItemTypes }
+      [array]$items = Invoke-FabricAPIRequest -Uri "workspaces/$($workspace.id)/items" -Method Get
+      [array]$filteredItems = $items | Where-Object { $_.type -in $config.ExportSettings.ItemTypes }
       Write-Host "  - $($workspace.displayName): $($filteredItems.Count) items" -ForegroundColor Gray
     }
         
