@@ -96,7 +96,7 @@ Write-Host "$ScriptName - Version $ScriptVersion" -ForegroundColor Green
 Write-Host "Enhanced with FabricPS-PBIP integration" -ForegroundColor Cyan
 Write-Host ("=" * 50)
 
-#region Prerequisites and Validation
+#region Prereq & Validation
 
 # Check PowerShell version - require PowerShell 7+
 if ($PSVersionTable.PSVersion.Major -lt 7) {
@@ -150,7 +150,7 @@ if ($TargetFolder) { $config.ExportSettings.TargetFolder = $TargetFolder }
 
 #endregion
 
-#region Module Management
+#region Module Mgmt
 
 # Import core module
 [string]$coreModulePath = Join-Path -Path $PSScriptRoot -ChildPath "modules\FabricArchiveBotCore.psm1"

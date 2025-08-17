@@ -35,18 +35,18 @@ function Invoke-FABRateLimitedOperation {
     [int]$BaseDelaySeconds = 30
   )
   
-  $retryCount = 0
-  $maxRetries = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.MaxRetries) {
+  [int]$retryCount = 0
+  [int]$maxRetries = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.MaxRetries) {
     $Config.FabricPSPBIPSettings.RateLimitSettings.MaxRetries
   }
   else { $MaxRetries }
   
-  $baseDelay = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.RetryDelaySeconds) {
+  [int]$baseDelay = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.RetryDelaySeconds) {
     $Config.FabricPSPBIPSettings.RateLimitSettings.RetryDelaySeconds
   }
   else { $BaseDelaySeconds }
   
-  $backoffMultiplier = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.BackoffMultiplier) {
+  [int]$backoffMultiplier = if ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['RateLimitSettings'] -and $Config.FabricPSPBIPSettings.RateLimitSettings.BackoffMultiplier) {
     $Config.FabricPSPBIPSettings.RateLimitSettings.BackoffMultiplier
   }
   else { 2 }
@@ -62,7 +62,7 @@ function Invoke-FABRateLimitedOperation {
       # Check if this is a rate limiting error (429)
       if ($_.Exception.Message -match "429|rate.limit|throttl" -or $_.Exception.Message -match "Too Many Requests") {
         if ($retryCount -le $maxRetries) {
-          $delaySeconds = $baseDelay * [Math]::Pow($backoffMultiplier, $retryCount - 1)
+          [int]$delaySeconds = $baseDelay * [Math]::Pow($backoffMultiplier, $retryCount - 1)
           Write-Warning "Rate limit encountered for $OperationName. Waiting $delaySeconds seconds before retry $retryCount/$maxRetries..."
           Start-Sleep -Seconds $delaySeconds
           continue
@@ -74,7 +74,7 @@ function Invoke-FABRateLimitedOperation {
       }
       # Check for other retryable errors
       elseif ($_.Exception.Message -match "503|502|timeout|connection" -and $retryCount -le $maxRetries) {
-        $delaySeconds = $baseDelay
+        [int]$delaySeconds = $baseDelay
         Write-Warning "Transient error for $OperationName. Waiting $delaySeconds seconds before retry $retryCount/$maxRetries..."
         Start-Sleep -Seconds $delaySeconds
         continue
@@ -106,20 +106,20 @@ function Get-FABOptimalThrottleLimit {
   )
   
   # Get system logical processor count
-  $logicalProcessors = (Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors
+  [int]$logicalProcessors = (Get-CimInstance -ClassName Win32_ComputerSystem).NumberOfLogicalProcessors
   
   # Determine throttle limit from various sources (priority order)
   if ($OverrideThrottleLimit -gt 0) {
-    $throttleLimit = $OverrideThrottleLimit
+    [int]$throttleLimit = $OverrideThrottleLimit
     Write-Host "Using runtime override throttle limit: $throttleLimit"
   }
   elseif ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ThrottleLimit'] -and $Config.FabricPSPBIPSettings.ThrottleLimit -gt 0) {
-    $throttleLimit = $Config.FabricPSPBIPSettings.ThrottleLimit
+    [int]$throttleLimit = $Config.FabricPSPBIPSettings.ThrottleLimit
     Write-Host "Using config throttle limit: $throttleLimit"
   }
   else {
     # Default to logical processor count, but cap at reasonable maximum
-    $throttleLimit = [Math]::Min($logicalProcessors, 12)
+    [int]$throttleLimit = [Math]::Min($logicalProcessors, 12)
     Write-Host "Using auto-detected throttle limit: $throttleLimit (based on $logicalProcessors logical processors)"
   }
   
@@ -137,8 +137,8 @@ function Test-FABFabricPSPBIPAvailability {
     }
     
     # If not available, try to import it from the expected location
-    $moduleFileName = "FabricPS-PBIP.psm1"
-    $possiblePaths = @(
+    [string]$moduleFileName = "FabricPS-PBIP.psm1"
+    [string[]]$possiblePaths = @(
       (Join-Path -Path $PSScriptRoot -ChildPath "..\$moduleFileName"),
       (Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath $moduleFileName)
     )
@@ -174,7 +174,7 @@ function Initialize-FABFabricConnection {
     
     # Remove all Azure modules to clear conflicts
     Write-Host "Clearing Azure module conflicts..." -ForegroundColor Yellow
-    $azModules = Get-Module -Name "Az.*"
+    [Microsoft.PowerShell.Commands.ModuleInfoGrouping[]]$azModules = Get-Module -Name "Az.*"
     if ($azModules) {
       Write-Host "Removing existing Azure modules: $($azModules.Name -join ', ')" -ForegroundColor Yellow
       $azModules | Remove-Module -Force -ErrorAction SilentlyContinue
@@ -247,7 +247,7 @@ function Get-FABFabricWorkspaceById {
   )
   
   try {
-    $workspace = Invoke-FabricAPIRequest -Uri "workspaces/$WorkspaceId" -Method Get
+    [PSCustomObject]$workspace = Invoke-FabricAPIRequest -Uri "workspaces/$WorkspaceId" -Method Get
     return $workspace
   }
   catch {
@@ -268,7 +268,7 @@ function Get-FABFabricItemsByWorkspace {
   )
   
   try {
-    $items = Invoke-FabricAPIRequest -Uri "workspaces/$WorkspaceId/items" -Method Get
+    [array]$items = Invoke-FabricAPIRequest -Uri "workspaces/$WorkspaceId/items" -Method Get
     return $items
   }
   catch {
@@ -286,7 +286,7 @@ function Get-FABFabricWorkspaces {
   param()
   
   try {
-    $workspaces = Invoke-FabricAPIRequest -Uri "workspaces" -Method Get
+    [array]$workspaces = Invoke-FabricAPIRequest -Uri "workspaces" -Method Get
     return $workspaces
   }
   catch {
@@ -329,12 +329,12 @@ function Invoke-FABWorkspaceFilter {
     Write-Host "Applying workspace filter: $Filter"
     
     # Start with all workspaces
-    $filteredWorkspaces = $Workspaces
+    [PSCustomObject[]]$filteredWorkspaces = $Workspaces
     
     # Handle state filtering - matches: state eq 'Active', state eq 'Inactive'
     # Note: Fabric API doesn't return 'state' property, so we treat all returned workspaces as 'Active'
     if ($Filter -match "state\s+eq\s+'([^']+)'") {
-      $stateFilter = $matches[1]
+      [string]$stateFilter = $matches[1]
       Write-Host "  - Filtering by state: $stateFilter"
       if ($stateFilter -eq 'Active') {
         # All workspaces returned by the API are considered active/accessible
@@ -343,34 +343,34 @@ function Invoke-FABWorkspaceFilter {
       else {
         # If filtering for inactive workspaces, return empty since API only returns active ones
         Write-Host "    (Filtering out all workspaces since API only returns active ones)"
-        $filteredWorkspaces = @()
+        [PSCustomObject[]]$filteredWorkspaces = @()
       }
     }
     
     # Handle type filtering - matches: type eq 'Workspace'
     if ($Filter -match "type\s+eq\s+'([^']+)'") {
-      $typeFilter = $matches[1]
+      [string]$typeFilter = $matches[1]
       Write-Host "  - Filtering by type: $typeFilter"
       $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.type -eq $typeFilter }
     }
     
     # Handle name contains filtering - matches: contains(name,'pattern')
     if ($Filter -match "contains\s*\(\s*name\s*,\s*'([^']+)'\s*\)") {
-      $namePattern = $matches[1]
+      [string]$namePattern = $matches[1]
       Write-Host "  - Filtering by name pattern: $namePattern"
       $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.displayName -like "*$namePattern*" }
     }
     
     # Handle name starts with filtering - matches: startswith(name,'pattern')
     if ($Filter -match "startswith\s*\(\s*name\s*,\s*'([^']+)'\s*\)") {
-      $namePattern = $matches[1]
+      [string]$namePattern = $matches[1]
       Write-Host "  - Filtering by name starts with: $namePattern"
       $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.displayName -like "$namePattern*" }
     }
     
     # Handle name ends with filtering - matches: endswith(name,'pattern')
     if ($Filter -match "endswith\s*\(\s*name\s*,\s*'([^']+)'\s*\)") {
-      $namePattern = $matches[1]
+      [string]$namePattern = $matches[1]
       Write-Host "  - Filtering by name ends with: $namePattern"
       $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.displayName -like "*$namePattern" }
     }
@@ -418,17 +418,17 @@ function Get-FABSupportedItemTypes {
     [Parameter()]
     [int]$CacheHours = 24
   )
-  
-  $cacheFile = Join-Path $env:TEMP "FABSupportedItemTypes.json"
-  $cacheValidUntil = (Get-Date).AddHours(-$CacheHours)
+
+  [string]$cacheFile = Join-Path $env:TEMP "FABSupportedItemTypes.json"
+  [datetime]$cacheValidUntil = (Get-Date).AddHours(-$CacheHours)
   
   try {
     # Check cache first if requested
     if ($UseCache -and (Test-Path $cacheFile)) {
-      $cacheInfo = Get-Item $cacheFile
+      [System.IO.FileInfo]$cacheInfo = Get-Item $cacheFile
       if ($cacheInfo.LastWriteTime -gt $cacheValidUntil) {
         Write-Verbose "Using cached supported item types from $cacheFile"
-        $cached = Get-Content $cacheFile -Raw | ConvertFrom-Json
+        [array]$cached = Get-Content $cacheFile -Raw | ConvertFrom-Json
         if ($cached -and $cached.Count -gt 0) {
           return $cached
         }
@@ -438,10 +438,10 @@ function Get-FABSupportedItemTypes {
     Write-Verbose "Fetching supported item types from $TocUrl"
     
     # Fetch the TOC JSON
-    $response = Invoke-RestMethod -Uri $TocUrl -Method Get -ErrorAction Stop
+    [PSCustomObject]$response = Invoke-RestMethod -Uri $TocUrl -Method Get -ErrorAction Stop
     
     # Find all "Get {xyz} Definition" entries and extract parent hierarchy
-    $supportedTypes = @()
+    [array]$supportedTypes = @()
     if ($response.PSObject.Properties['items'] -and $response.items) {
       foreach ($item in $response.items) {
         $supportedTypes += Find-FABDefinitionEndpoints -Node $item -ParentPath @()
@@ -449,18 +449,18 @@ function Get-FABSupportedItemTypes {
     }
     else {
       # Fallback: treat response as a node directly
-      $supportedTypes = Find-FABDefinitionEndpoints -Node $response -ParentPath @()
+      [array]$supportedTypes = Find-FABDefinitionEndpoints -Node $response -ParentPath @()
     }
     
     # Clean and validate results
-    $cleanTypes = $supportedTypes | Where-Object { $_ -and $_.Trim() } | 
+    [string[]]$cleanTypes = $supportedTypes | Where-Object { $_ -and $_.Trim() } | 
     ForEach-Object { $_.Trim() } | 
     Where-Object { $_ -notin @("Core", "Admin", "Spark") } |  # Filter out non-item types
     Sort-Object -Unique
     
     # Validate against known good types
-    $knownTypes = @("Report", "SemanticModel", "Dataflow", "Notebook", "Environment")
-    $hasKnownTypes = $cleanTypes | Where-Object { $_ -in $knownTypes }
+    [string[]]$knownTypes = @("Report", "SemanticModel", "Dataflow", "Notebook", "Environment")
+    [array]$hasKnownTypes = $cleanTypes | Where-Object { $_ -in $knownTypes }
     
     if ($hasKnownTypes.Count -eq 0) {
       Write-Warning "No known item types found in TOC response. Using fallback list."
@@ -506,10 +506,10 @@ function Find-FABDefinitionEndpoints {
     [string[]]$ParentPath = @()
   )
   
-  $results = @()
+  [array]$results = @()
   
   # Get current node title
-  $currentTitle = if ($Node.PSObject.Properties['toc_title']) { $Node.toc_title } else { "" }
+  [string]$currentTitle = if ($Node.PSObject.Properties['toc_title']) { $Node.toc_title } else { "" }
   
   # Check if current node has a toc_title indicating a "Get {xyz} Definition" endpoint
   if ($currentTitle -and $currentTitle -match '^Get .+ Definition$') {
@@ -518,7 +518,7 @@ function Find-FABDefinitionEndpoints {
     # The item type should be extracted from the path
     # Looking for pattern: ItemType -> Items -> "Get ItemType Definition"
     if ($ParentPath.Count -ge 2 -and $ParentPath[-1] -eq "Items") {
-      $itemType = $ParentPath[-2]  # The item type is the grandparent
+      [string]$itemType = $ParentPath[-2]  # The item type is the grandparent
       $results += $itemType
       Write-Verbose "✓ Found supported item type: '$itemType' (from endpoint '$currentTitle')"
     }
@@ -530,7 +530,7 @@ function Find-FABDefinitionEndpoints {
   # Recursively search child items
   if ($Node.PSObject.Properties['children'] -and $Node.children) {
     foreach ($child in $Node.children) {
-      $newPath = if ($currentTitle) { $ParentPath + @($currentTitle) } else { $ParentPath }
+      [string[]]$newPath = if ($currentTitle) { $ParentPath + @($currentTitle) } else { $ParentPath }
       $results += Find-FABDefinitionEndpoints -Node $child -ParentPath $newPath
     }
   }
@@ -577,16 +577,16 @@ function Confirm-FABConfigurationCompatibility {
 
   # Get supported item types dynamically from Microsoft Learn
   Write-Verbose "Retrieving supported item types from Microsoft Learn documentation..."
-  $ItemTypes = Get-FABSupportedItemTypes -UseCache
+  [string[]]$ItemTypes = Get-FABSupportedItemTypes -UseCache
   
   # Filter out any user-configured item types that are not supported
   if ($Config.PSObject.Properties['ExportSettings'] -and 
     $Config.ExportSettings.PSObject.Properties['ItemTypes'] -and 
     $Config.ExportSettings.ItemTypes) {
     
-    $configuredTypes = $Config.ExportSettings.ItemTypes
-    $supportedConfigured = $configuredTypes | Where-Object { $_ -in $ItemTypes }
-    $unsupportedTypes = $configuredTypes | Where-Object { $_ -notin $ItemTypes }
+    [string[]]$configuredTypes = $Config.ExportSettings.ItemTypes
+    [string[]]$supportedConfigured = $configuredTypes | Where-Object { $_ -in $ItemTypes }
+    [string[]]$unsupportedTypes = $configuredTypes | Where-Object { $_ -notin $ItemTypes }
     
     if ($unsupportedTypes.Count -gt 0) {
       Write-Warning "The following configured item types are not supported for definition export: $($unsupportedTypes -join ', ')"
@@ -598,15 +598,15 @@ function Confirm-FABConfigurationCompatibility {
     }
   }
   
-  $WorkspaceFilter = "(type eq 'Workspace') and (state eq 'Active')"
+  [string]$WorkspaceFilter = "(type eq 'Workspace') and (state eq 'Active')"
 
   # Ensure ExportSettings exists
   if (-not $Config.PSObject.Properties['ExportSettings']) {
     Write-Warning "ExportSettings not found in configuration. Adding default settings."
-    $defaultTargetFolder = ".\Workspaces"
+    [string]$defaultTargetFolder = ".\Workspaces"
     # Optionally resolve to absolute path for clarity
     if ($defaultTargetFolder -notmatch '^[a-zA-Z]:\\') {
-      $defaultTargetFolder = (Resolve-Path $defaultTargetFolder).Path
+      [string]$defaultTargetFolder = (Resolve-Path $defaultTargetFolder).Path
     }
     $Config | Add-Member -MemberType NoteProperty -Name 'ExportSettings' -Value ([PSCustomObject]@{
         TargetFolder    = $defaultTargetFolder
@@ -669,11 +669,11 @@ function Export-FABFabricItemsAdvanced {
   
   # Determine if parallel processing should be enabled (PowerShell 7+ is required)
   # Default to parallel processing unless explicitly disabled or config says otherwise
-  $enableParallelProcessing = (-not $SerialProcessing.IsPresent) -and
+  [bool]$enableParallelProcessing = (-not $SerialProcessing.IsPresent) -and
   (-not ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ParallelProcessing'] -and -not $Config.FabricPSPBIPSettings.ParallelProcessing))
   
   # Get optimal throttle limit
-  $actualThrottleLimit = Get-FABOptimalThrottleLimit -OverrideThrottleLimit $ThrottleLimit -Config $Config
+  [int]$actualThrottleLimit = Get-FABOptimalThrottleLimit -OverrideThrottleLimit $ThrottleLimit -Config $Config
   
   Write-Host "Parallel processing: $($enableParallelProcessing ? 'Enabled' : 'Disabled')" -ForegroundColor $(if ($enableParallelProcessing) { 'Green' } else { 'Yellow' })
   if ($enableParallelProcessing) {
@@ -683,30 +683,30 @@ function Export-FABFabricItemsAdvanced {
   # Get workspaces using FabricPS-PBIP
   if (-not $WorkspaceIds) {
     Write-Host "Retrieving workspaces based on configuration filter..."
-    $workspaces = Invoke-FABRateLimitedOperation -Operation {
+    [array]$workspaces = Invoke-FABRateLimitedOperation -Operation {
       Get-FABFabricWorkspaces
     } -Config $Config -OperationName "Get-FabricWorkspaces"
     
     # Ensure we have a valid array
     if (-not $workspaces) {
-      $workspaces = @()
+      [array]$workspaces = @()
     }
     
     # Apply workspace filtering based on configuration
     if ($Config.ExportSettings.WorkspaceFilter) {
-      $workspaces = Invoke-FABWorkspaceFilter -Workspaces $workspaces -Filter $Config.ExportSettings.WorkspaceFilter
+      [array]$workspaces = Invoke-FABWorkspaceFilter -Workspaces $workspaces -Filter $Config.ExportSettings.WorkspaceFilter
       # Ensure filtering result is valid
       if (-not $workspaces) {
-        $workspaces = @()
+        [array]$workspaces = @()
       }
     }
     
     # Safely extract workspace IDs
     if ($workspaces -and $workspaces.Count -gt 0) {
-      $WorkspaceIds = $workspaces.id
+      [string[]]$WorkspaceIds = $workspaces.id
     }
     else {
-      $WorkspaceIds = @()
+      [string[]]$WorkspaceIds = @()
       Write-Warning "No workspaces found matching the filter criteria"
     }
   }
@@ -721,26 +721,26 @@ function Export-FABFabricItemsAdvanced {
   
   # Collect all workspace info and items first
   Write-Host "Gathering workspace information and item inventories..." -ForegroundColor Cyan
-  $allWorkspaceData = @()
-  $totalItemCount = 0
+  [array]$allWorkspaceData = @()
+  [int]$totalItemCount = 0
   
   foreach ($workspaceId in $WorkspaceIds) {
     try {
       Write-Host "  - Gathering info for workspace: $workspaceId"
       
-      $workspaceInfo = Invoke-FABRateLimitedOperation -Operation {
+      [PSCustomObject]$workspaceInfo = Invoke-FABRateLimitedOperation -Operation {
         Get-FABFabricWorkspaceById -WorkspaceId $workspaceId
       } -Config $Config -OperationName "Get-FabricWorkspace-$workspaceId"
       
-      $items = Invoke-FABRateLimitedOperation -Operation {
+      [array]$items = Invoke-FABRateLimitedOperation -Operation {
         Get-FABFabricItemsByWorkspace -WorkspaceId $workspaceId
       } -Config $Config -OperationName "Get-FabricItem-$workspaceId"
       
-      $filteredItems = $items | Where-Object { $_.type -in $Config.ExportSettings.ItemTypes }
+      [array]$filteredItems = $items | Where-Object { $_.type -in $Config.ExportSettings.ItemTypes }
       $totalItemCount += $filteredItems.Count
       
       # Create workspace folder structure
-      $workspaceFolder = Join-Path -Path $TargetFolder -ChildPath $workspaceInfo.displayName
+      [string]$workspaceFolder = Join-Path -Path $TargetFolder -ChildPath $workspaceInfo.displayName
       if (-not (Test-Path $workspaceFolder)) {
         New-Item -Path $workspaceFolder -ItemType Directory -Force | Out-Null
       }
@@ -763,7 +763,7 @@ function Export-FABFabricItemsAdvanced {
   Write-Host "Total items to export: $totalItemCount across $($allWorkspaceData.Count) workspaces" -ForegroundColor Green
   
   # Create a flattened list of all items with their workspace context
-  $allItemJobs = @()
+  [array]$allItemJobs = @()
   foreach ($workspaceData in $allWorkspaceData) {
     foreach ($item in $workspaceData.FilteredItems) {
       $allItemJobs += [PSCustomObject]@{
@@ -781,20 +781,20 @@ function Export-FABFabricItemsAdvanced {
     Write-Host "Processing $($allItemJobs.Count) items in parallel across all workspaces..." -ForegroundColor Green
     
     # Get the rate limiting function definition dynamically for parallel execution
-    $rateLimitedOperationFunction = Get-Command Invoke-FABRateLimitedOperation
-    $rateLimitedOperationFunctionText = $rateLimitedOperationFunction.Definition
+    [System.Management.Automation.CommandInfo]$rateLimitedOperationFunction = Get-Command Invoke-FABRateLimitedOperation
+    [string]$rateLimitedOperationFunctionText = $rateLimitedOperationFunction.Definition
     
     # Get the FabricPS-PBIP module path to pass to parallel threads
-    $moduleFileName = "FabricPS-PBIP.psm1"
-    $fabricModulePath = $null
-    $possiblePaths = @(
+    [string]$moduleFileName = "FabricPS-PBIP.psm1"
+    [string]$fabricModulePath = $null
+    [string[]]$possiblePaths = @(
       (Join-Path -Path $PSScriptRoot -ChildPath "..\$moduleFileName"),
       (Join-Path -Path (Split-Path -Parent $PSScriptRoot) -ChildPath $moduleFileName)
     )
     
     foreach ($path in $possiblePaths) {
       if (Test-Path -Path $path) {
-        $fabricModulePath = $path
+        [string]$fabricModulePath = $path
         break
       }
     }
@@ -804,25 +804,25 @@ function Export-FABFabricItemsAdvanced {
     }
     
     $allItemJobs | ForEach-Object -Parallel {
-      $itemJob = $_
-      $Config = $using:Config
-      $functionText = $using:rateLimitedOperationFunctionText
-      $modulePath = $using:fabricModulePath
+      [PSCustomObject]$itemJob = $_
+      [PSCustomObject]$Config = $using:Config
+      [string]$functionText = $using:rateLimitedOperationFunctionText
+      [string]$modulePath = $using:fabricModulePath
       
       try {
         # Import FabricPS-PBIP module in parallel thread
         Import-Module -Name $modulePath -Force
         
         # Define the rate limiting function in this thread scope
-        $functionDefinition = "function Invoke-FABRateLimitedOperation { $functionText }"
+        [string]$functionDefinition = "function Invoke-FABRateLimitedOperation { $functionText }"
         Invoke-Expression $functionDefinition
         
-        $threadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
+        [int]$threadId = [System.Threading.Thread]::CurrentThread.ManagedThreadId
         Write-Host "Exporting item '$($itemJob.Item.displayName)' from workspace '$($itemJob.WorkspaceInfo.displayName)' (Thread: $threadId)"
         
         # Create item-specific folder
-        $itemFolderName = "$($itemJob.Item.displayName).$($itemJob.Item.type)"
-        $itemFolder = Join-Path -Path $itemJob.WorkspaceFolder -ChildPath $itemFolderName
+        [string]$itemFolderName = "$($itemJob.Item.displayName).$($itemJob.Item.type)"
+        [string]$itemFolder = Join-Path -Path $itemJob.WorkspaceFolder -ChildPath $itemFolderName
         if (-not (Test-Path $itemFolder)) {
           New-Item -Path $itemFolder -ItemType Directory -Force | Out-Null
         }
@@ -844,20 +844,20 @@ function Export-FABFabricItemsAdvanced {
   else {
     Write-Host "Processing $($allItemJobs.Count) items sequentially..." -ForegroundColor Yellow
     
-    $currentWorkspace = ""
+    [string]$currentWorkspace = ""
     foreach ($itemJob in $allItemJobs) {
       try {
         # Show workspace context when we switch workspaces
         if ($currentWorkspace -ne $itemJob.WorkspaceInfo.displayName) {
-          $currentWorkspace = $itemJob.WorkspaceInfo.displayName
+          [string]$currentWorkspace = $itemJob.WorkspaceInfo.displayName
           Write-Host "Processing workspace: $currentWorkspace" -ForegroundColor Cyan
         }
         
         Write-Host "  - Exporting: $($itemJob.Item.displayName)"
         
         # Create item-specific folder
-        $itemFolderName = "$($itemJob.Item.displayName).$($itemJob.Item.type)"
-        $itemFolder = Join-Path -Path $itemJob.WorkspaceFolder -ChildPath $itemFolderName
+        [string]$itemFolderName = "$($itemJob.Item.displayName).$($itemJob.Item.type)"
+        [string]$itemFolder = Join-Path -Path $itemJob.WorkspaceFolder -ChildPath $itemFolderName
         if (-not (Test-Path $itemFolder)) {
           New-Item -Path $itemFolder -ItemType Directory -Force | Out-Null
         }
@@ -904,7 +904,7 @@ function Export-FABWorkspaceMetadata {
   )
     
   # Build metadata structure
-  $consolidatedMetadata = @{
+  [hashtable]$consolidatedMetadata = @{
     ExportTimestamp = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ'
     ExportSummary   = @{
       TotalWorkspaces   = $AllWorkspaceData.Count
@@ -918,7 +918,7 @@ function Export-FABWorkspaceMetadata {
   
   # Add detailed information for each workspace
   foreach ($workspaceData in $AllWorkspaceData) {
-    $workspaceMetadata = @{
+    [hashtable]$workspaceMetadata = @{
       WorkspaceInfo     = $workspaceData.WorkspaceInfo
       Items             = $workspaceData.Items
       FilteredItems     = $workspaceData.FilteredItems
@@ -945,7 +945,7 @@ function Export-FABWorkspaceMetadata {
   }
     
   # Export metadata as JSON
-  $metadataPath = Join-Path -Path $TargetFolder -ChildPath "fabric-archive-metadata.json"
+  [string]$metadataPath = Join-Path -Path $TargetFolder -ChildPath "fabric-archive-metadata.json"
   $consolidatedMetadata | ConvertTo-Json -Depth 10 | Out-File -FilePath $metadataPath -Encoding UTF8
   
   Write-Host "Metadata saved to: $metadataPath" -ForegroundColor Gray
@@ -983,12 +983,12 @@ function Start-FABFabricArchiveProcess {
   }
   else {
     # Load configuration from file
-    $Config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+    [PSCustomObject]$Config = Get-Content -Path $ConfigPath | ConvertFrom-Json
     Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
   }
   
   # Ensure configuration compatibility
-  $Config = Confirm-FABConfigurationCompatibility -Config $Config
+  [PSCustomObject]$Config = Confirm-FABConfigurationCompatibility -Config $Config
     
   # Validate version compatibility
   if ($Config.Version -lt "2.0") {
@@ -996,8 +996,8 @@ function Start-FABFabricArchiveProcess {
   }
     
   # Setup target folder with date hierarchy
-  $date = Get-Date
-  $dateFolder = Join-Path -Path $Config.ExportSettings.TargetFolder -ChildPath ("{0}\{1:D2}\{2:D2}" -f $date.Year, $date.Month, $date.Day)
+  [datetime]$date = Get-Date
+  [string]$dateFolder = Join-Path -Path $Config.ExportSettings.TargetFolder -ChildPath ("{0}\{1:D2}\{2:D2}" -f $date.Year, $date.Month, $date.Day)
     
   if (-not (Test-Path $dateFolder)) {
     New-Item -Path $dateFolder -ItemType Directory -Force | Out-Null
@@ -1026,17 +1026,17 @@ function Remove-FABOldArchives {
     [PSCustomObject]$Config
   )
     
-  $cutoffDate = (Get-Date).AddDays(-$Config.ExportSettings.RetentionDays)
-  $targetFolder = $Config.ExportSettings.TargetFolder
+  [datetime]$cutoffDate = (Get-Date).AddDays(-$Config.ExportSettings.RetentionDays)
+  [string]$targetFolder = $Config.ExportSettings.TargetFolder
     
   Write-Host "Cleaning up archives older than $($cutoffDate.ToString('yyyy-MM-dd'))"
     
-  $oldFolders = Get-ChildItem -Path $targetFolder -Directory -Recurse | 
+  [array]$oldFolders = Get-ChildItem -Path $targetFolder -Directory -Recurse | 
   Where-Object { $_.CreationTime -lt $cutoffDate -and $_.FullName -ne $targetFolder }
     
-  $totalSize = 0
+  [long]$totalSize = 0
   foreach ($folder in $oldFolders) {
-    $folderSize = (Get-ChildItem -Path $folder.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum
+    [long]$folderSize = (Get-ChildItem -Path $folder.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum
     $totalSize += $folderSize
     Write-Host "Removing old archive: $($folder.FullName) ($(($folderSize / 1MB).ToString('F2')) MB)"
     Remove-Item -Path $folder.FullName -Recurse -Force -ErrorAction SilentlyContinue
@@ -1059,10 +1059,10 @@ function Send-FABArchiveNotification {
     [string]$ArchiveFolder
   )
     
-  $archiveSize = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object -Property Length -Sum).Sum
-  $itemCount = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object).Count
+  [long]$archiveSize = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object -Property Length -Sum).Sum
+  [int]$itemCount = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object).Count
     
-  $message = @"
+  [string]$message = @"
 Fabric Archive Bot v2.0 - Archive Completed
 
 Archive Location: $ArchiveFolder
