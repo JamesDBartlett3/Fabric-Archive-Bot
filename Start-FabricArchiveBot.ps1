@@ -25,9 +25,6 @@
 .PARAMETER ThrottleLimit
   Maximum number of concurrent workspace processing threads. Defaults to CPU core count.
 
-.PARAMETER SkipLegacyFallback
-  Skip fallback to v1.0 functionality if FabricPS-PBIP is unavailable.
-
 .INPUTS
   None - Pipeline input is not accepted.
 
@@ -68,7 +65,6 @@
 .NOTES
   Requires PowerShell 7+
   Requires FabricPS-PBIP module (will be downloaded automatically if missing)
-  Falls back to v1.0 functionality if FabricPS-PBIP is unavailable
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
@@ -89,10 +85,7 @@ param(
   [switch]$SerialProcessing,
     
   [Parameter()]
-  [int]$ThrottleLimit = 0,
-    
-  [Parameter()]
-  [switch]$SkipLegacyFallback
+  [int]$ThrottleLimit = 0
 )
 
 # Script metadata
@@ -252,26 +245,9 @@ try {
   Write-Host "FabricPS-PBIP module loaded successfully" -ForegroundColor Green
 }
 catch {
-  Write-Warning "Failed to load FabricPS-PBIP module: $($_.Exception.Message)"
-    
-  if (-not $SkipLegacyFallback) {
-    Write-Host "Falling back to v1.0 functionality..." -ForegroundColor Yellow
-    $legacyScriptPath = Join-Path -Path $PSScriptRoot -ChildPath "Export-FabricItemsFromAllWorkspaces.ps1"
-        
-    if (Test-Path -Path $legacyScriptPath) {
-      Write-Host "Executing legacy script: $legacyScriptPath" -ForegroundColor Yellow
-      & $legacyScriptPath -ConfigObject $config
-      exit $LASTEXITCODE
-    }
-    else {
-      Write-Error "Legacy script not found and FabricPS-PBIP unavailable. Cannot proceed."
-      exit 1
-    }
-  }
-  else {
-    Write-Error "FabricPS-PBIP unavailable and legacy fallback disabled. Cannot proceed."
-    exit 1
-  }
+  Write-Error "Failed to load FabricPS-PBIP module: $($_.Exception.Message)"
+  Write-Error "FabricPS-PBIP module is required for operation. Cannot proceed."
+  exit 1
 }
 
 #endregion

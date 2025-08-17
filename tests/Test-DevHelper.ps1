@@ -56,7 +56,7 @@ function Write-FABTestHeader {
 function Initialize-FABTestEnvironment {
   Write-FABTestHeader "Setting Up Test Environment"  # Check PowerShell version
   if ($PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Warning "PowerShell 7+ is recommended for this solution"
+    Write-Warning "PowerShell 7+ is required for this solution"
     Write-Host "Current version: $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
   }
   else {
