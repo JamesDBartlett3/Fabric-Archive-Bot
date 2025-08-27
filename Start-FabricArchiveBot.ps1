@@ -187,7 +187,7 @@ try {
   Write-Host "Checking for Azure module conflicts..." -ForegroundColor Cyan
   
   # Get all loaded Azure modules
-  [Microsoft.PowerShell.Commands.ModuleInfoGrouping[]]$loadedAzModules = Get-Module -Name "Az.*"
+  $loadedAzModules = Get-Module -Name "Az.*"
   if ($loadedAzModules) {
     Write-Host "Found loaded Azure modules that may cause conflicts: $($loadedAzModules.Name -join ', ')" -ForegroundColor Yellow
     Write-Host "Removing all Azure modules to prevent assembly conflicts..." -ForegroundColor Yellow

@@ -174,7 +174,7 @@ function Initialize-FABFabricConnection {
     
     # Remove all Azure modules to clear conflicts
     Write-Host "Clearing Azure module conflicts..." -ForegroundColor Yellow
-    [Microsoft.PowerShell.Commands.ModuleInfoGrouping[]]$azModules = Get-Module -Name "Az.*"
+    $azModules = Get-Module -Name "Az.*"
     if ($azModules) {
       Write-Host "Removing existing Azure modules: $($azModules.Name -join ', ')" -ForegroundColor Yellow
       $azModules | Remove-Module -Force -ErrorAction SilentlyContinue
