@@ -17,6 +17,7 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **Environment Variables**: Use user environment variables for configuration storage and portability
 - **JSON Configuration**: Store configuration as compressed JSON in environment variables
 - **File-based Fallback**: Support loading configuration from JSON files when environment variables are not available
+- **Configuration Reflects Code**: Ensure configuration options directly map to code functionality
 
 ### Data Integrity
 
@@ -37,12 +38,29 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **Azure Module Conflicts**: Implement proactive detection and resolution of Az.Accounts assembly loading conflicts
 - **Fresh Session Recovery**: When module conflicts occur, guide users to start fresh PowerShell sessions
 - **Configuration Validation**: Validate configuration compatibility and provide clear error messages for misconfigurations
+- **Robust API Interaction**: Implement retry logic and exponential backoff for API calls to handle transient failures
+- **Logging and Monitoring**: Provide detailed logging for operations, including successes, failures, and retries
+
+### Performance Considerations
+- **Parallel Processing**: Use parallel processing for exporting items, with configurable concurrency limits
+- **Throttling Awareness**: Monitor and respect API rate limits to avoid throttling
+- **Efficient Resource Usage**: Optimize memory and CPU usage, especially when handling large workspaces or multiple concurrent exports
+- **Configurable Delays**: Allow users to configure delays between API calls to manage rate limiting
+
+### User Interface
+- **Command-Line Interface**: Provide a user-friendly CLI with clear commands and options
+- **Interactive Prompts**: Use interactive prompts for configuration and operation selection when not supplied via environment variables, files, or command-line arguments
+- **Interactive Selection**: Allow users to interactively select workspaces and item types when not pre-configured (use `Out-ConsoleGridView` from `Microsoft.PowerShell.ConsoleGuiTools` module)
+- **Verbose Output**: Offer verbose logging options for troubleshooting and detailed operation insights
+- **Progress Indicators**: Implement progress indicators for long-running operations
+- **Error Handling**: Provide clear error messages and recovery options for failed operations
 
 ### User Experience
 
 - **Clear Documentation**: Provide comprehensive guides for common scenarios (API rate limiting, parallel processing, workspace filtering)
 - **Example Scripts**: Include practical examples that demonstrate proper usage patterns
 - **Helper Scripts**: Provide utility scripts for common tasks like environment setup and scheduled task registration
+- **Examples and Docs Reflect Code**: Ensure all examples and documentation map directly to current code functionality
 
 ## Development Guidelines
 
@@ -52,6 +70,7 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **Modular Design**: Keep core functionality in modules, with clear separation of concerns
 - **Backward Compatibility**: When possible, maintain compatibility with existing configurations while encouraging migration to v2.0
 
+<!-- TEMPORARILY IGNORE UNTIL TESTING FRAMEWORK IS IN PLACE
 ### Testing and Validation
 
 - **Configuration Testing**: Always validate configuration changes before committing
@@ -60,6 +79,7 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **Pester Framework**: Use Pester 5.x for all testing with proper PowerShell 7+ compatibility
 - **Fast Test Execution**: Mock Start-Sleep and external API calls to ensure tests run in milliseconds, not minutes
 - **Comprehensive Coverage**: Maintain test coverage for all public functions with both unit and integration tests
+-->
 
 ### Naming Conventions and Code Standards
 
@@ -72,7 +92,9 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **Inline Comments**: Provide clear comments explaining complex logic, especially around module loading and configuration handling
 - **User Guides**: Maintain comprehensive documentation for setup, configuration, and troubleshooting
 - **Change Management**: Document breaking changes and provide migration guidance
+- **Examples and Docs Reflect Code**: Ensure all examples and documentation map directly to current code functionality
 
 ### Out-of-Scope Considerations
 
 - **Version 1.0**: Do not modify, reference, or test the legacy version 1.0 codebase (Export-FabricItemsFromAllWorkspaces.ps1). This file must remain untouched to ensure compatibility with existing deployments.
+- **Windows PowerShell**: Do not add support for Windows PowerShell (5.1 or earlier). The solution is designed for PowerShell 7+ only.
