@@ -1,0 +1,26 @@
+{
+  "Version": "2.0",
+  "ServicePrincipal": {
+    "AppId": "12345678-1234-1234-1234-123456789abc",
+    "AppSecret": "test-secret-value",
+    "TenantId": "87654321-4321-4321-4321-cba987654321"
+  },
+  "ExportSettings": {
+    "TargetFolder": ".\\Tests\\TestOutput",
+    "RetentionDays": 30,
+    "WorkspaceFilter": "(type eq 'Workspace') and (state eq 'Active')",
+    "ItemTypes": ["Report", "SemanticModel", "Notebook", "SparkJobDefinition"]
+  },
+  "FabricPSPBIPSettings": {
+    "ParallelProcessing": true,
+    "ThrottleLimit": 4,
+    "RateLimitSettings": {
+      "MaxRetries": 1,
+      "RetryDelaySeconds": 1,
+      "BackoffMultiplier": 2
+    }
+  },
+  "NotificationSettings": {
+    "EnableNotifications": false
+  }
+}
