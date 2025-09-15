@@ -64,7 +64,9 @@
 
 .NOTES
   Requires PowerShell 7+
-  Requires FabricPS-PBIP module (will be downloaded automatically if missing)
+  Requires FabricPS-PBIP module for core Fabric API interactions (will be downloaded automatically if missing)
+  Requires Az.Accounts and Az.Resources modules for Azure authentication and resource management (will be installed automatically if missing)
+  Requires Microsoft.PowerShell.ConsoleGuiTools module for graphical interface (will be installed automatically if missing)
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
