@@ -340,14 +340,10 @@ function Show-FABFileDiff {
     if ($LocalAsNew) {
         $oldLabel = "CLOUD"
         $newLabel = "LOCAL"
-        $oldFiles = $CloudFiles
-        $newFiles = $LocalFiles
     }
     else {
         $oldLabel = "LOCAL"
         $newLabel = "CLOUD"
-        $oldFiles = $LocalFiles
-        $newFiles = $CloudFiles
     }
     
     $allPaths = ($CloudFiles.Keys + $LocalFiles.Keys) | Select-Object -Unique | Sort-Object
