@@ -478,7 +478,7 @@ function Get-FABItemDefinition {
         Write-Verbose "Polling operation status (attempt $retryCount/$maxRetries)..."
         
         $statusResponse = Invoke-WebRequest -Uri $operationLocation -Method Get -Headers $headers -ErrorAction Stop
-        $statusContent = $statusResponse.Content | ConvertFrom-Json
+        $statusContent = $statusResponse.Content | ConvertFrom-Json -Depth 100
         
         Write-Verbose "Operation status: $($statusContent.status)"
         
@@ -502,7 +502,7 @@ function Get-FABItemDefinition {
           break
         }
         elseif ($statusContent.status -ieq 'Failed') {
-          throw "Operation failed: $($statusContent.error | ConvertTo-Json)"
+          throw "Operation failed: $($statusContent.error | ConvertTo-Json -Depth 10 -Compress)"
         }
         elseif ($statusContent.status -imatch 'Running|NotStarted|InProgress') {
           Write-Verbose "Operation still in progress..."
@@ -518,17 +518,17 @@ function Get-FABItemDefinition {
       }
     }
     
-    # Parse and return the response content
-    $result = $response.Content | ConvertFrom-Json
+    # Parse and return the response content with full depth
+    $result = $response.Content | ConvertFrom-Json -Depth 100
     
-    Write-Verbose "Response structure: $($result | ConvertTo-Json -Depth 2)"
+    Write-Verbose "Response structure: $($result | ConvertTo-Json -Depth 10 -Compress)"
     
     if ($result.definition -and $result.definition.parts) {
       Write-Verbose "Found $($result.definition.parts.Count) parts in definition"
     }
     else {
       Write-Warning "Response does not contain expected definition.parts structure"
-      Write-Verbose "Response content: $($response.Content)"
+      Write-Verbose "Response content (first 500 chars): $($response.Content.Substring(0, [Math]::Min(500, $response.Content.Length)))"
     }
     
     return $result
