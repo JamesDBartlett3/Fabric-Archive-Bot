@@ -302,7 +302,7 @@ function Invoke-FABWorkspaceFilter {
   
   .DESCRIPTION
   Parses OData-style filter expressions and applies them to workspace collections.
-  Supports filtering by state, type, and name patterns.
+  Supports filtering by state, type, name patterns, capacity, and domain.
   
   .PARAMETER Workspaces
   The array of workspace objects to filter
@@ -315,6 +315,12 @@ function Invoke-FABWorkspaceFilter {
   
   .EXAMPLE
   $filtered = Invoke-FABWorkspaceFilter -Workspaces $workspaces -Filter "(type eq 'Workspace') and (state eq 'Active')"
+  
+  .EXAMPLE
+  $filtered = Invoke-FABWorkspaceFilter -Workspaces $workspaces -Filter "(capacityId eq '56bac802-080d-4f73-8a42-1b406eb1fcac')"
+  
+  .EXAMPLE
+  $filtered = Invoke-FABWorkspaceFilter -Workspaces $workspaces -Filter "(domainId eq '9ce364e0-8e9d-4605-887a-b599b3e8b123')"
   #>
   [CmdletBinding()]
   param(
@@ -330,6 +336,30 @@ function Invoke-FABWorkspaceFilter {
     
     # Start with all workspaces
     [PSCustomObject[]]$filteredWorkspaces = $Workspaces
+    
+    # Check if we need to enrich workspaces with capacityId or domainId information
+    [bool]$needsCapacityId = $Filter -match "capacityId\s+eq\s+'([^']+)'"
+    [bool]$needsDomainId = $Filter -match "domainId\s+eq\s+'([^']+)'"
+    
+    if ($needsCapacityId -or $needsDomainId) {
+      Write-Host "  - Enriching workspace data with detailed information..."
+      $enrichedWorkspaces = @()
+      
+      foreach ($workspace in $Workspaces) {
+        try {
+          # Get full workspace details including capacityId and domainId
+          [PSCustomObject]$workspaceInfo = Invoke-FabricAPIRequest -Uri "workspaces/$($workspace.id)" -Method Get
+          $enrichedWorkspaces += $workspaceInfo
+        }
+        catch {
+          Write-Warning "  - Failed to get details for workspace '$($workspace.displayName)' ($($workspace.id)): $($_.Exception.Message)"
+          # Still include the workspace with basic info
+          $enrichedWorkspaces += $workspace
+        }
+      }
+      
+      $filteredWorkspaces = $enrichedWorkspaces
+    }
     
     # Handle state filtering - matches: state eq 'Active', state eq 'Inactive'
     # Note: Fabric API doesn't return 'state' property, so we treat all returned workspaces as 'Active'
@@ -352,6 +382,20 @@ function Invoke-FABWorkspaceFilter {
       [string]$typeFilter = $matches[1]
       Write-Host "  - Filtering by type: $typeFilter"
       $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.type -eq $typeFilter }
+    }
+    
+    # Handle capacity filtering - matches: capacityId eq 'guid'
+    if ($Filter -match "capacityId\s+eq\s+'([^']+)'") {
+      [string]$capacityIdFilter = $matches[1]
+      Write-Host "  - Filtering by capacityId: $capacityIdFilter"
+      $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.capacityId -eq $capacityIdFilter }
+    }
+    
+    # Handle domain filtering - matches: domainId eq 'guid'
+    if ($Filter -match "domainId\s+eq\s+'([^']+)'") {
+      [string]$domainIdFilter = $matches[1]
+      Write-Host "  - Filtering by domainId: $domainIdFilter"
+      $filteredWorkspaces = $filteredWorkspaces | Where-Object { $_.domainId -eq $domainIdFilter }
     }
     
     # Handle name contains filtering - matches: contains(name,'pattern')
