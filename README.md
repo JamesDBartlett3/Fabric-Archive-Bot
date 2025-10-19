@@ -1,17 +1,20 @@
 # Fabric-Archive-Bot
+
 A fully automated Microsoft Power BI/Fabric tenant backup solution written in PowerShell
 <img width="1024" height="1024" alt="fabric-archive-bot" src="https://github.com/user-attachments/assets/2672219b-cc49-43f7-a494-6ecd33c03a27" />
 
 ## Features
+
 - **Free & Open Source**: No licensing fees, no vendor lock-in, and full access to the source code. You can run the script on your own hardware or in your own cloud environment, and you can modify the code to suit your needs. If you find a bug or want to add a feature, you can create [an issue](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/issues/new/choose) or [a pull request](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/fork). Please review the [LICENSE.txt](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/blob/main/LICENSE.txt) file for more information.
 - **Premium Not Required**: Works with both Power BI Pro and Power BI Premium, so you don't need to pay for Premium to use this solution.
 - **Export Reports, Semantic Models, Notebooks, and Spark Job Definitions**: Exports all reports, semantic models (formerly "datasets"), notebooks, and spark job definitions from all workspaces in your Power BI/Fabric tenant to a local directory.
-- **Service Principal Support**: Can authenticate as an Entra ID App Registration (a.k.a. "Service Principal"), so you don't need to login with your user account. This is especially useful for running the script on a schedule in an unattended environment. *Note: You will need to create an App Registration in Entra ID, add it to a new security group, grant that group the necessary permissions in the Power BI Admin Portal, and then provide the App ID, App Secret, and Tenant ID in the `Config.json` file.*
+- **Service Principal Support**: Can authenticate as an Entra ID App Registration (a.k.a. "Service Principal"), so you don't need to login with your user account. This is especially useful for running the script on a schedule in an unattended environment. _Note: You will need to create an App Registration in Entra ID, add it to a new security group, grant that group the necessary permissions in the Power BI Admin Portal, and then provide the App ID, App Secret, and Tenant ID in the `Config.json` file._
 - **Fully Automated**: Run the script on a daily schedule to automatically back up all workspaces in your Power BI/Fabric tenant (use Windows Task Scheduler or a similar tool).
 - **Configurable**: Customize the target folder, semantic model format (TMSL/TMDL), workspaces to archive, retention policy, and more (run `Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1` for more information).
 - **Secure**: Uses Entra ID authentication to access the Fabric REST APIs, so you don't need to store your username and password in the script.
 
 ## Current Issues & Limitations
+
 - **Windows Machine**: Runs on Windows in a local or cloud environment (physical or virtual machine), but does not currently support running as an Azure Function (a.k.a "serverless"). This feature is planned for a future release.
 - **Local Storage**: Exports items to a local directory, but does not currently support exporting to Azure Blob Storage, Amazon S3, Google Cloud Storage, etc. This feature is planned for a future release.
 - **Item Types**: Can only export reports, semantic models (formerly "datasets"), notebooks, and spark job definitions. This is [a limitation of the Microsoft Fabric REST APIs](https://learn.microsoft.com/en-us/rest/api/fabric/articles/item-management/definitions/item-definition-overview), and Microsoft has not yet made it clear if/when they will add support for exporting other item types.
@@ -25,52 +28,79 @@ A fully automated Microsoft Power BI/Fabric tenant backup solution written in Po
 
 ## Usage
 
-### Version 2.0 (Recommended - Enhanced with FabricTools)
+### Version 2.0 (Recommended - Enhanced with FabricPS-PBIP)
+
 1. Clone this repository to your local environment.
-2. Open the `Config.json` file in a text editor and fill in the required values for your Service Principal.
-3. Open the `IgnoreList.json` file in a text editor and fill in the items you want to ignore.
-4. Open a PowerShell terminal and navigate to the directory where you cloned this repository.
-5. Run the following command to start the Fabric Archive Bot v2.0:
-    ```powershell
-    .\Start-FabricArchiveBot.ps1
-    ```
+2. Open the `FabricArchiveBot_Config.json` file in a text editor and configure the required settings:
+   - **Authentication**: Service Principal details (AppId, TenantId, AppSecret) or interactive authentication
+   - **WorkspaceFilter**: OData filter expression to select which workspaces to archive
+   - **TargetFolder**: Directory where archived items will be exported
+   - **Additional options**: Parallel processing, API rate limiting, and more
+3. Open a PowerShell terminal and navigate to the directory where you cloned this repository.
+4. Run the following command to start the Fabric Archive Bot v2.0:
+   ```powershell
+   .\Start-FabricArchiveBot.ps1
+   ```
+   - The FabricPS-PBIP module will be downloaded automatically from GitHub if not present
+   - Use the `-GetLatestModule` switch to force download of the latest version
 
 ### Version 1.0 (Legacy - For backward compatibility)
+
 If you need to use the original v1.0 script, you can still run:
+
 ```powershell
 .\Export-FabricItemsFromAllWorkspaces.ps1
 ```
 
+Note: Version 1.0 uses `Config.json` and `IgnoreList.json` for configuration.
+
 ### Additional Options
+
 - **Schedule the script**: Use the provided helper script to set up a Windows scheduled task:
   ```powershell
   .\helpers\Register-FabricArchiveBotScheduledTask.ps1
   ```
 - **Migrate from v1.0 to v2.0**: Use the migration helper to upgrade your configuration:
-  ```powershell
+  ````powershell
     ```pwsh
   .\helpers\ConvertTo-FabricArchiveBotV2.ps1
-  ```
+  ````
 
 ## Notes
 
 ### Version 2.0 Features
+
 To see the available parameters for the enhanced v2.0 script:
+
 ```powershell
 Get-Help .\Start-FabricArchiveBot.ps1 -Full
 ```
 
 ### Version 1.0 (Legacy)
+
 If you want to customize the legacy Fabric Archive Bot's behavior:
+
 ```powershell
 Get-Help .\Export-FabricItemsFromAllWorkspaces.ps1 -Full
 ```
 
-If you cloned or forked this repo with Git, you can run these commands to prevent your changes to the `Config.json` and `IgnoreList.json` files from being tracked in your local repository (so you can't accidentally commit your Service Principal App Secret!):
+### Protecting Your Configuration Files
+
+If you cloned or forked this repo with Git, you can run these commands to prevent your changes to configuration files from being tracked in your local repository (so you can't accidentally commit your Service Principal App Secret!):
+
+**For Version 2.0:**
+
+```bash
+git update-index --skip-worktree FabricArchiveBot_Config.json
+```
+
+**For Version 1.0 (Legacy):**
+
 ```bash
 git update-index --skip-worktree Config.json
 git update-index --skip-worktree IgnoreList.json
 ```
 
 ## Acknowledgements
+
 This project was inspired by, and wouldn't be possible without, [the FabricPS-PBIP PowerShell module](https://github.com/microsoft/Analysis-Services/tree/master/pbidevmode/fabricps-pbip/FabricPS-PBIP.psm1), which was created by [Rui Romano](https://github.com/ruiromano), and can be found in the [Analysis-Services repository on GitHub](https://github.com/microsoft/Analysis-Services).

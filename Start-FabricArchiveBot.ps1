@@ -25,6 +25,9 @@
 .PARAMETER ThrottleLimit
   Maximum number of concurrent workspace processing threads. Defaults to CPU core count.
 
+.PARAMETER GetLatestModule
+  Download the latest version of the FabricPS-PBIP module from GitHub, replacing any existing local copy.
+
 .INPUTS
   None - Pipeline input is not accepted.
 
@@ -55,6 +58,11 @@
   .\Start-FabricArchiveBot.ps1 -WorkspaceFilter "(state eq 'Active') and contains(name,'Production')"
 
   Runs with a custom workspace filter to only process active workspaces with 'Production' in the name.
+
+.EXAMPLE
+  .\Start-FabricArchiveBot.ps1 -GetLatestModule
+
+  Downloads the latest version of the FabricPS-PBIP module from GitHub before running the export.
 
 .LINK
   [Source code](https://github.com/JamesDBartlett3/Fabric-Archive-Bot)
@@ -87,7 +95,10 @@ param(
   [switch]$SerialProcessing,
     
   [Parameter()]
-  [int]$ThrottleLimit = 0
+  [int]$ThrottleLimit = 0,
+    
+  [Parameter()]
+  [switch]$GetLatestModule
 )
 
 # Script metadata
@@ -220,9 +231,11 @@ try {
   [string]$localModulePath = Join-Path -Path $PSScriptRoot -ChildPath $moduleFileName
   
   # Download latest FabricPS-PBIP.psm1 if it doesn't exist or if we want the latest
-  if (-not (Test-Path -Path $localModulePath)) {
+  if (-not (Test-Path -Path $localModulePath) -or $GetLatestModule) {
     Write-Host "FabricPS-PBIP module not found. Downloading from GitHub..." -ForegroundColor Yellow
     try {
+      Remove-Module FabricPS-PBIP -ErrorAction SilentlyContinue
+      Remove-Item $localModulePath -ErrorAction SilentlyContinue
       Invoke-WebRequest -Uri $moduleUrl -OutFile $localModulePath
       Unblock-File -Path $localModulePath
       Write-Host "FabricPS-PBIP module downloaded successfully" -ForegroundColor Green
