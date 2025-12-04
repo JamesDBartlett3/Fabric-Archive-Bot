@@ -8,18 +8,50 @@ This file contains the version history and changes for Fabric Archive Bot.
 
 ### Added
 
+- **Comprehensive Logging Framework** (#10)
+  - Structured logging with multiple log levels: Verbose, Info, Warning, Error, Success
+  - File logging with configurable output directory and automatic timestamped filenames
+  - Session tracking with ErrorCount, WarningCount, SuccessCount, FailureCount metrics
+  - Operation tracking with automatic timing and duration calculation
+  - JSON session summary export with complete operation history
+  - New functions: `Initialize-FABLogging`, `Write-FABLog`, `Start-FABOperation`, `Complete-FABOperation`, `Get-FABLogSummary`, `Export-FABLogSummary`
+  - `LoggingSettings` configuration section in `FabricArchiveBot_Config.json`
+  - Comprehensive [error-handling-and-logging-guide.md](docs/error-handling-and-logging-guide.md) documentation
+
+- **Enhanced Error Handling** (#10)
+  - Structured error categorization: RateLimit, Transient, NonRetryable
+  - Detailed error context tracking with operation names and parameters
+  - Automatic retry with exponential backoff for rate limiting (429) and transient failures (503, 502, timeout, connection)
+  - Error reports with detailed context and diagnostic information
+  - Try/catch blocks with proper logging in critical functions
+
+- **Item-Level Filtering** (#15)
+  - Filter items by type using OData-style expressions: `type eq 'Report'`, `type in ('Report', 'SemanticModel')`
+  - Filter by displayName patterns: `contains()`, `startswith()`, `endswith()`
+  - Filter by description content
+  - New function: `Invoke-FABItemFilter`
+  - `ItemFilter` configuration property in `ExportSettings`
+  - Scanner API enrichment placeholder for future user/date filtering
+  - Comprehensive [filtering-guide.md](docs/filtering-guide.md) documentation
+
 - **Capacity Filtering**: Filter workspaces by assigned `capacityId` using OData-style expressions (#15)
 - **Domain Filtering**: Filter workspaces by assigned `domainId` using OData-style expressions (#15)
 - **Workspace Detail Enrichment**: Automatically retrieves full workspace details when filtering by capacity or domain
-- **Enhanced Documentation**: Updated workspace filtering guide with capacity and domain filtering examples
 
 ### Changed
 
+- **Logging**: All console output (`Write-Host`, `Write-Warning`, `Write-Error`) replaced with structured `Write-FABLog` calls
+- **Operation Tracking**: Main orchestration functions now use `Start-FABOperation`/`Complete-FABOperation` for comprehensive tracking
+- **Retry Logic**: `Invoke-FABRateLimitedOperation` enhanced with structured logging and detailed error context
+- **Notifications**: `Send-FABArchiveNotification` now includes session statistics in notification messages
+- **Cleanup**: `Remove-FABOldArchives` now includes operation tracking and detailed error handling
 - `Invoke-FABWorkspaceFilter` function now supports `capacityId` and `domainId` filter criteria
 - Workspace filtering guide expanded with new filter types and performance considerations
 
 ### Performance Notes
 
+- Logging framework adds minimal overhead (< 1ms per operation)
+- File logging recommended for production deployments
 - Capacity and domain filtering require additional API calls to retrieve full workspace details
 - Consider combining with name-based filters to optimize performance with large workspace counts
 

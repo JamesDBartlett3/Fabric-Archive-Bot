@@ -7,7 +7,368 @@ This module provides enhanced archiving capabilities using the FabricPS-PBIP Pow
 while maintaining backward compatibility with v1.0 functionality.
 #>
 
+#region Module Variables
+
+# Global logging state
+[hashtable]$Script:FABLogContext = @{
+  LogLevel       = 'Info'
+  LogToFile      = $false
+  LogFilePath    = $null
+  SessionId      = [guid]::NewGuid().ToString()
+  SessionStart   = Get-Date
+  ErrorCount     = 0
+  WarningCount   = 0
+  SuccessCount   = 0
+  FailureCount   = 0
+  Operations     = [System.Collections.ArrayList]::new()
+}
+
+#endregion
+
 #region Private Functions
+
+#region Logging Functions
+
+function Initialize-FABLogging {
+  <#
+  .SYNOPSIS
+  Initializes the logging subsystem with configuration
+  
+  .DESCRIPTION
+  Sets up logging based on configuration, including log level, file logging, and session tracking
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter()]
+    [PSCustomObject]$Config
+  )
+  
+  try {
+    # Reset session state
+    $Script:FABLogContext.SessionId = [guid]::NewGuid().ToString()
+    $Script:FABLogContext.SessionStart = Get-Date
+    $Script:FABLogContext.ErrorCount = 0
+    $Script:FABLogContext.WarningCount = 0
+    $Script:FABLogContext.SuccessCount = 0
+    $Script:FABLogContext.FailureCount = 0
+    $Script:FABLogContext.Operations.Clear()
+    
+    # Apply configuration
+    if ($Config -and $Config.PSObject.Properties['LoggingSettings']) {
+      [PSCustomObject]$loggingSettings = $Config.LoggingSettings
+      
+      # Set log level
+      if ($loggingSettings.PSObject.Properties['LogLevel']) {
+        [string]$logLevel = $loggingSettings.LogLevel
+        if ($logLevel -in @('Verbose', 'Info', 'Warning', 'Error')) {
+          $Script:FABLogContext.LogLevel = $logLevel
+        }
+      }
+      
+      # Configure file logging
+      if ($loggingSettings.PSObject.Properties['EnableFileLogging'] -and $loggingSettings.EnableFileLogging) {
+        $Script:FABLogContext.LogToFile = $true
+        
+        if ($loggingSettings.PSObject.Properties['LogDirectory']) {
+          [string]$logDir = $loggingSettings.LogDirectory
+          
+          # Expand environment variables
+          $logDir = [System.Environment]::ExpandEnvironmentVariables($logDir)
+          
+          # Create log directory if it doesn't exist
+          if (-not (Test-Path -Path $logDir)) {
+            New-Item -Path $logDir -ItemType Directory -Force | Out-Null
+          }
+          
+          # Generate log file name with timestamp
+          [string]$timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+          [string]$logFileName = "FabricArchiveBot_$timestamp.log"
+          $Script:FABLogContext.LogFilePath = Join-Path -Path $logDir -ChildPath $logFileName
+          
+          # Write session header to log file
+          $sessionHeader = @"
+================================================================================
+Fabric Archive Bot - Session Log
+================================================================================
+Session ID: $($Script:FABLogContext.SessionId)
+Start Time: $($Script:FABLogContext.SessionStart.ToString('yyyy-MM-dd HH:mm:ss'))
+Log Level:  $($Script:FABLogContext.LogLevel)
+================================================================================
+
+"@
+          Add-Content -Path $Script:FABLogContext.LogFilePath -Value $sessionHeader
+        }
+      }
+    }
+    
+    Write-FABLog -Level Info -Message "Logging initialized (SessionId: $($Script:FABLogContext.SessionId))" -NoFileLog
+  }
+  catch {
+    Write-Warning "Failed to initialize logging: $($_.Exception.Message)"
+  }
+}
+
+function Write-FABLog {
+  <#
+  .SYNOPSIS
+  Writes a log message with the specified level
+  
+  .DESCRIPTION
+  Core logging function that handles console output, file logging, and message formatting
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [ValidateSet('Verbose', 'Info', 'Warning', 'Error', 'Success')]
+    [string]$Level,
+    
+    [Parameter(Mandatory = $true)]
+    [string]$Message,
+    
+    [Parameter()]
+    [string]$Operation = $null,
+    
+    [Parameter()]
+    [hashtable]$Details = @{},
+    
+    [Parameter()]
+    [switch]$NoConsole,
+    
+    [Parameter()]
+    [switch]$NoFileLog
+  )
+  
+  # Check if this log level should be output based on configured level
+  [string[]]$logLevelHierarchy = @('Verbose', 'Info', 'Warning', 'Error')
+  [int]$currentLevelIndex = $logLevelHierarchy.IndexOf($Script:FABLogContext.LogLevel)
+  [int]$messageLevelIndex = $logLevelHierarchy.IndexOf($Level)
+  
+  # Special handling for Success - always show unless log level is Error
+  [bool]$shouldOutput = if ($Level -eq 'Success') {
+    $Script:FABLogContext.LogLevel -ne 'Error'
+  }
+  else {
+    $messageLevelIndex -ge $currentLevelIndex
+  }
+  
+  if (-not $shouldOutput) {
+    return
+  }
+  
+  # Format timestamp
+  [string]$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+  
+  # Format message with level indicator
+  [string]$levelPrefix = switch ($Level) {
+    'Verbose' { '[VERBOSE]' }
+    'Info' { '[INFO]   ' }
+    'Warning' { '[WARNING]' }
+    'Error' { '[ERROR]  ' }
+    'Success' { '[SUCCESS]' }
+  }
+  
+  [string]$formattedMessage = "$timestamp $levelPrefix $Message"
+  
+  # Console output (unless suppressed)
+  if (-not $NoConsole) {
+    $consoleColor = switch ($Level) {
+      'Verbose' { 'Gray' }
+      'Info' { 'White' }
+      'Warning' { 'Yellow' }
+      'Error' { 'Red' }
+      'Success' { 'Green' }
+    }
+    
+    Write-Host $formattedMessage -ForegroundColor $consoleColor
+  }
+  
+  # File logging (if enabled and not suppressed)
+  if ($Script:FABLogContext.LogToFile -and -not $NoFileLog -and $Script:FABLogContext.LogFilePath) {
+    try {
+      Add-Content -Path $Script:FABLogContext.LogFilePath -Value $formattedMessage
+      
+      # Add details if provided
+      if ($Details.Count -gt 0) {
+        [string]$detailsJson = $Details | ConvertTo-Json -Compress
+        Add-Content -Path $Script:FABLogContext.LogFilePath -Value "  Details: $detailsJson"
+      }
+    }
+    catch {
+      # Avoid recursive logging errors
+      Write-Warning "Failed to write to log file: $($_.Exception.Message)"
+    }
+  }
+  
+  # Track operation metrics
+  if ($Operation) {
+    [PSCustomObject]$operationRecord = [PSCustomObject]@{
+      Timestamp = Get-Date
+      Operation = $Operation
+      Level     = $Level
+      Message   = $Message
+      Details   = $Details
+    }
+    $Script:FABLogContext.Operations.Add($operationRecord) | Out-Null
+  }
+  
+  # Update counters
+  switch ($Level) {
+    'Error' { $Script:FABLogContext.ErrorCount++ }
+    'Warning' { $Script:FABLogContext.WarningCount++ }
+    'Success' { $Script:FABLogContext.SuccessCount++ }
+  }
+}
+
+function Start-FABOperation {
+  <#
+  .SYNOPSIS
+  Marks the start of a tracked operation
+  
+  .DESCRIPTION
+  Creates an operation tracking context that can be used to measure duration and capture results
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$OperationName,
+    
+    [Parameter()]
+    [hashtable]$Parameters = @{}
+  )
+  
+  [PSCustomObject]$operation = [PSCustomObject]@{
+    OperationId   = [guid]::NewGuid().ToString()
+    OperationName = $OperationName
+    StartTime     = Get-Date
+    EndTime       = $null
+    Duration      = $null
+    Status        = 'Running'
+    Parameters    = $Parameters
+    Result        = $null
+    Error         = $null
+  }
+  
+  Write-FABLog -Level Verbose -Message "Starting operation: $OperationName" -Operation $OperationName -Details $Parameters
+  
+  return $operation
+}
+
+function Complete-FABOperation {
+  <#
+  .SYNOPSIS
+  Marks the completion of a tracked operation
+  
+  .DESCRIPTION
+  Finalizes an operation tracking context with success/failure status and duration
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [PSCustomObject]$Operation,
+    
+    [Parameter()]
+    [switch]$Success,
+    
+    [Parameter()]
+    [object]$Result = $null,
+    
+    [Parameter()]
+    [string]$ErrorMessage = $null
+  )
+  
+  $Operation.EndTime = Get-Date
+  $Operation.Duration = $Operation.EndTime - $Operation.StartTime
+  $Operation.Status = if ($Success) { 'Completed' } else { 'Failed' }
+  $Operation.Result = $Result
+  $Operation.Error = $ErrorMessage
+  
+  [hashtable]$details = @{
+    Duration = $Operation.Duration.TotalSeconds
+  }
+  
+  if ($Success) {
+    Write-FABLog -Level Success -Message "Completed operation: $($Operation.OperationName) in $($Operation.Duration.TotalSeconds.ToString('F2'))s" -Operation $Operation.OperationName -Details $details
+    $Script:FABLogContext.SuccessCount++
+  }
+  else {
+    Write-FABLog -Level Error -Message "Failed operation: $($Operation.OperationName) - $ErrorMessage" -Operation $Operation.OperationName -Details $details
+    $Script:FABLogContext.FailureCount++
+  }
+  
+  $Script:FABLogContext.Operations.Add($Operation) | Out-Null
+}
+
+function Get-FABLogSummary {
+  <#
+  .SYNOPSIS
+  Retrieves a summary of the current logging session
+  
+  .DESCRIPTION
+  Returns statistics and metrics about the current session including error counts and operation history
+  #>
+  [CmdletBinding()]
+  param()
+  
+  [timespan]$sessionDuration = (Get-Date) - $Script:FABLogContext.SessionStart
+  
+  [PSCustomObject]$summary = [PSCustomObject]@{
+    SessionId      = $Script:FABLogContext.SessionId
+    SessionStart   = $Script:FABLogContext.SessionStart
+    SessionDuration = $sessionDuration
+    LogLevel       = $Script:FABLogContext.LogLevel
+    LogFilePath    = $Script:FABLogContext.LogFilePath
+    ErrorCount     = $Script:FABLogContext.ErrorCount
+    WarningCount   = $Script:FABLogContext.WarningCount
+    SuccessCount   = $Script:FABLogContext.SuccessCount
+    FailureCount   = $Script:FABLogContext.FailureCount
+    TotalOperations = $Script:FABLogContext.Operations.Count
+    Operations     = $Script:FABLogContext.Operations
+  }
+  
+  return $summary
+}
+
+function Export-FABLogSummary {
+  <#
+  .SYNOPSIS
+  Exports a detailed session summary to a JSON file
+  
+  .DESCRIPTION
+  Creates a comprehensive report of the session including all operations, errors, and metrics
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter()]
+    [string]$OutputPath = $null
+  )
+  
+  [PSCustomObject]$summary = Get-FABLogSummary
+  
+  # Generate output path if not provided
+  if (-not $OutputPath) {
+    if ($Script:FABLogContext.LogFilePath) {
+      [string]$logDir = Split-Path -Path $Script:FABLogContext.LogFilePath -Parent
+      [string]$timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+      $OutputPath = Join-Path -Path $logDir -ChildPath "FabricArchiveBot_Summary_$timestamp.json"
+    }
+    else {
+      [string]$timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+      $OutputPath = "FabricArchiveBot_Summary_$timestamp.json"
+    }
+  }
+  
+  try {
+    $summary | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath
+    Write-FABLog -Level Info -Message "Session summary exported to: $OutputPath"
+    return $OutputPath
+  }
+  catch {
+    Write-FABLog -Level Error -Message "Failed to export session summary: $($_.Exception.Message)"
+    throw
+  }
+}
+
+#endregion Logging Functions
 
 function Invoke-FABRateLimitedOperation {
   <#
@@ -53,35 +414,37 @@ function Invoke-FABRateLimitedOperation {
   
   do {
     try {
-      Write-Host "Executing $OperationName$(if ($retryCount -gt 0) { " (Retry $retryCount/$maxRetries)" })" -ForegroundColor Gray
+      [string]$attemptMessage = if ($retryCount -gt 0) { " (Retry $retryCount/$maxRetries)" } else { "" }
+      Write-FABLog -Level Verbose -Message "Executing $OperationName$attemptMessage"
       return & $Operation
     }
     catch {
       $retryCount++
+      [string]$errorMessage = $_.Exception.Message
       
       # Check if this is a rate limiting error (429)
-      if ($_.Exception.Message -match "429|rate.limit|throttl" -or $_.Exception.Message -match "Too Many Requests") {
+      if ($errorMessage -match "429|rate.limit|throttl" -or $errorMessage -match "Too Many Requests") {
         if ($retryCount -le $maxRetries) {
           [int]$delaySeconds = $baseDelay * [Math]::Pow($backoffMultiplier, $retryCount - 1)
-          Write-Warning "Rate limit encountered for $OperationName. Waiting $delaySeconds seconds before retry $retryCount/$maxRetries..."
+          Write-FABLog -Level Warning -Message "Rate limit encountered for $OperationName. Waiting $delaySeconds seconds before retry $retryCount/$maxRetries" -Operation $OperationName -Details @{ ErrorType = 'RateLimit'; RetryCount = $retryCount; DelaySeconds = $delaySeconds }
           Start-Sleep -Seconds $delaySeconds
           continue
         }
         else {
-          Write-Error "Rate limit exceeded for $OperationName after $maxRetries retries. Operation failed."
+          Write-FABLog -Level Error -Message "Rate limit exceeded for $OperationName after $maxRetries retries. Operation failed." -Operation $OperationName -Details @{ ErrorType = 'RateLimit'; MaxRetries = $maxRetries }
           throw
         }
       }
       # Check for other retryable errors
-      elseif ($_.Exception.Message -match "503|502|timeout|connection" -and $retryCount -le $maxRetries) {
+      elseif ($errorMessage -match "503|502|timeout|connection" -and $retryCount -le $maxRetries) {
         [int]$delaySeconds = $baseDelay
-        Write-Warning "Transient error for $OperationName. Waiting $delaySeconds seconds before retry $retryCount/$maxRetries..."
+        Write-FABLog -Level Warning -Message "Transient error for $OperationName. Waiting $delaySeconds seconds before retry $retryCount/$maxRetries" -Operation $OperationName -Details @{ ErrorType = 'Transient'; ErrorMessage = $errorMessage; RetryCount = $retryCount; DelaySeconds = $delaySeconds }
         Start-Sleep -Seconds $delaySeconds
         continue
       }
       else {
         # Non-retryable error or max retries exceeded
-        Write-Error "Non-retryable error for $OperationName or max retries exceeded: $($_.Exception.Message)"
+        Write-FABLog -Level Error -Message "Non-retryable error for $OperationName or max retries exceeded: $errorMessage" -Operation $OperationName -Details @{ ErrorType = 'NonRetryable'; ErrorMessage = $errorMessage; RetryCount = $retryCount }
         throw
       }
     }
@@ -425,6 +788,133 @@ function Invoke-FABWorkspaceFilter {
   catch {
     Write-Warning "Failed to parse workspace filter '$Filter'. Using all workspaces. Error: $($_.Exception.Message)"
     return $Workspaces
+  }
+}
+
+function Invoke-FABItemFilter {
+  <#
+  .SYNOPSIS
+  Applies item-level filtering based on configuration filter string
+
+  .DESCRIPTION
+  Parses OData-style filter expressions and applies them to item collections.
+  Supports filtering by type, name patterns, and optionally user/date metadata when Scanner API enrichment is enabled.
+
+  .PARAMETER Items
+  The array of item objects to filter
+
+  .PARAMETER Filter
+  The filter expression in OData style format
+
+  .PARAMETER Config
+  Configuration object (optional, used for Scanner API settings)
+
+  .PARAMETER WorkspaceId
+  Workspace ID (required for Scanner API enrichment)
+
+  .EXAMPLE
+  $filtered = Invoke-FABItemFilter -Items $items -Filter "type eq 'Report'"
+
+  .EXAMPLE
+  $filtered = Invoke-FABItemFilter -Items $items -Filter "type in ('Report', 'SemanticModel')"
+
+  .EXAMPLE
+  $filtered = Invoke-FABItemFilter -Items $items -Filter "contains(displayName,'Sales')"
+
+  .EXAMPLE
+  $filtered = Invoke-FABItemFilter -Items $items -Filter "modifiedBy eq 'john@contoso.com'" -Config $config -WorkspaceId $wsId
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter(Mandatory = $true)]
+    [PSCustomObject[]]$Items,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Filter,
+
+    [Parameter()]
+    [PSCustomObject]$Config,
+
+    [Parameter()]
+    [string]$WorkspaceId
+  )
+
+  try {
+    Write-Host "Applying item filter: $Filter"
+
+    # Start with all items
+    [PSCustomObject[]]$filteredItems = $Items
+
+    # Check if we need Scanner API enrichment for user/date filters
+    [bool]$needsEnrichment = $Filter -match "(createdBy|modifiedBy|createdDate|modifiedDate|configuredBy)"
+
+    if ($needsEnrichment) {
+      Write-Host "  - Filter requires Scanner API enrichment for user/date metadata"
+
+      # Check if Scanner API is enabled in config
+      if ($Config -and $Config.PSObject.Properties['AdvancedFeatures'] -and
+          $Config.AdvancedFeatures.PSObject.Properties['EnableScannerAPI'] -and
+          $Config.AdvancedFeatures.EnableScannerAPI) {
+
+        Write-Host "  - Enriching items with Scanner API metadata..."
+        # TODO: Implement Scanner API enrichment
+        Write-Warning "Scanner API enrichment not yet implemented. User/date filters will be skipped."
+      }
+      else {
+        Write-Warning "User/date filters require Scanner API enrichment. Enable 'AdvancedFeatures.EnableScannerAPI' in config."
+        Write-Warning "Only basic filters (type, name) will be applied."
+      }
+    }
+
+    # Handle type filtering - matches: type eq 'Report'
+    if ($Filter -match "type\s+eq\s+'([^']+)'") {
+      [string]$typeFilter = $matches[1]
+      Write-Host "  - Filtering by type: $typeFilter"
+      $filteredItems = $filteredItems | Where-Object { $_.type -eq $typeFilter }
+    }
+
+    # Handle type IN filtering - matches: type in ('Report', 'SemanticModel')
+    if ($Filter -match "type\s+in\s+\(([^)]+)\)") {
+      [string]$typeList = $matches[1]
+      [string[]]$types = $typeList -split ',' | ForEach-Object { $_.Trim().Trim("'") }
+      Write-Host "  - Filtering by types: $($types -join ', ')"
+      $filteredItems = $filteredItems | Where-Object { $_.type -in $types }
+    }
+
+    # Handle displayName contains filtering - matches: contains(displayName,'pattern')
+    if ($Filter -match "contains\s*\(\s*displayName\s*,\s*'([^']+)'\s*\)") {
+      [string]$namePattern = $matches[1]
+      Write-Host "  - Filtering by displayName pattern: $namePattern"
+      $filteredItems = $filteredItems | Where-Object { $_.displayName -like "*$namePattern*" }
+    }
+
+    # Handle displayName starts with filtering - matches: startswith(displayName,'pattern')
+    if ($Filter -match "startswith\s*\(\s*displayName\s*,\s*'([^']+)'\s*\)") {
+      [string]$namePattern = $matches[1]
+      Write-Host "  - Filtering by displayName starts with: $namePattern"
+      $filteredItems = $filteredItems | Where-Object { $_.displayName -like "$namePattern*" }
+    }
+
+    # Handle displayName ends with filtering - matches: endswith(displayName,'pattern')
+    if ($Filter -match "endswith\s*\(\s*displayName\s*,\s*'([^']+)'\s*\)") {
+      [string]$namePattern = $matches[1]
+      Write-Host "  - Filtering by displayName ends with: $namePattern"
+      $filteredItems = $filteredItems | Where-Object { $_.displayName -like "*$namePattern" }
+    }
+
+    # Handle description contains filtering - matches: contains(description,'pattern')
+    if ($Filter -match "contains\s*\(\s*description\s*,\s*'([^']+)'\s*\)") {
+      [string]$descPattern = $matches[1]
+      Write-Host "  - Filtering by description pattern: $descPattern"
+      $filteredItems = $filteredItems | Where-Object { $_.description -like "*$descPattern*" }
+    }
+
+    Write-Host "Item filter result: $($Items.Count) -> $($filteredItems.Count) items"
+    return $filteredItems
+  }
+  catch {
+    Write-Warning "Failed to parse item filter '$Filter'. Using all items. Error: $($_.Exception.Message)"
+    return $Items
   }
 }
 
@@ -779,8 +1269,15 @@ function Export-FABFabricItemsAdvanced {
       [array]$items = Invoke-FABRateLimitedOperation -Operation {
         Get-FABFabricItemsByWorkspace -WorkspaceId $workspaceId
       } -Config $Config -OperationName "Get-FabricItem-$workspaceId"
-      
+
+      # Apply item type filtering first (backward compatibility with ItemTypes config)
       [array]$filteredItems = $items | Where-Object { $_.type -in $Config.ExportSettings.ItemTypes }
+
+      # Apply additional item-level filtering if ItemFilter is configured
+      if ($Config.ExportSettings.PSObject.Properties['ItemFilter'] -and $Config.ExportSettings.ItemFilter) {
+        [array]$filteredItems = Invoke-FABItemFilter -Items $filteredItems -Filter $Config.ExportSettings.ItemFilter -Config $Config -WorkspaceId $workspaceId
+      }
+
       $totalItemCount += $filteredItems.Count
       
       # Create workspace folder structure
@@ -1033,29 +1530,65 @@ function Start-FABFabricArchiveProcess {
   
   # Ensure configuration compatibility
   [PSCustomObject]$Config = Confirm-FABConfigurationCompatibility -Config $Config
-    
-  # Validate version compatibility
-  if ($Config.Version -lt "2.0") {
-    Write-Warning "Configuration version $($Config.Version) detected. Consider upgrading to v2.0 format."
+  
+  # Initialize logging subsystem
+  Initialize-FABLogging -Config $Config
+  
+  # Start main archive operation tracking
+  [PSCustomObject]$archiveOperation = Start-FABOperation -OperationName "FabricArchiveProcess" -Parameters @{
+    ConfigPath     = $ConfigPath
+    SerialProcessing = $SerialProcessing.IsPresent
+    ThrottleLimit  = $ThrottleLimit
   }
+  
+  try {
+    # Validate version compatibility
+    if ($Config.Version -lt "2.0") {
+      Write-FABLog -Level Warning -Message "Configuration version $($Config.Version) detected. Consider upgrading to v2.0 format."
+    }
+      
+    # Setup target folder with date hierarchy
+    [datetime]$date = Get-Date
+    [string]$dateFolder = Join-Path -Path $Config.ExportSettings.TargetFolder -ChildPath ("{0}\{1:D2}\{2:D2}" -f $date.Year, $date.Month, $date.Day)
+      
+    if (-not (Test-Path $dateFolder)) {
+      New-Item -Path $dateFolder -ItemType Directory -Force | Out-Null
+      Write-FABLog -Level Info -Message "Created target folder: $dateFolder"
+    }
+      
+    # Start export process
+    Write-FABLog -Level Info -Message "Starting export process"
+    Export-FABFabricItemsAdvanced -Config $Config -TargetFolder $dateFolder -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
+      
+    # Cleanup old archives
+    Write-FABLog -Level Info -Message "Starting cleanup of old archives"
+    Remove-FABOldArchives -Config $Config
+      
+    # Send notifications if configured
+    if ($Config.NotificationSettings.EnableNotifications) {
+      Write-FABLog -Level Info -Message "Sending archive notification"
+      Send-FABArchiveNotification -Config $Config -ArchiveFolder $dateFolder
+    }
     
-  # Setup target folder with date hierarchy
-  [datetime]$date = Get-Date
-  [string]$dateFolder = Join-Path -Path $Config.ExportSettings.TargetFolder -ChildPath ("{0}\{1:D2}\{2:D2}" -f $date.Year, $date.Month, $date.Day)
+    # Complete operation successfully
+    Complete-FABOperation -Operation $archiveOperation -Success -Result @{
+      ArchiveFolder = $dateFolder
+      Summary      = Get-FABLogSummary
+    }
     
-  if (-not (Test-Path $dateFolder)) {
-    New-Item -Path $dateFolder -ItemType Directory -Force | Out-Null
+    # Export session summary
+    [string]$summaryPath = Export-FABLogSummary
+    Write-FABLog -Level Info -Message "Archive process completed successfully. Summary: $summaryPath"
   }
+  catch {
+    # Log the error and complete operation as failed
+    Write-FABLog -Level Error -Message "Archive process failed: $($_.Exception.Message)" -Operation "FabricArchiveProcess"
+    Complete-FABOperation -Operation $archiveOperation -ErrorMessage $_.Exception.Message
     
-  # Start export process
-  Export-FABFabricItemsAdvanced -Config $Config -TargetFolder $dateFolder -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
+    # Export session summary even on failure
+    Export-FABLogSummary
     
-  # Cleanup old archives
-  Remove-FABOldArchives -Config $Config
-    
-  # Send notifications if configured
-  if ($Config.NotificationSettings.EnableNotifications) {
-    Send-FABArchiveNotification -Config $Config -ArchiveFolder $dateFolder
+    throw
   }
 }
 
@@ -1069,24 +1602,45 @@ function Remove-FABOldArchives {
     [Parameter(Mandatory = $true)]
     [PSCustomObject]$Config
   )
+  
+  [PSCustomObject]$cleanupOp = Start-FABOperation -OperationName "CleanupOldArchives"
+  
+  try {
+    [datetime]$cutoffDate = (Get-Date).AddDays(-$Config.ExportSettings.RetentionDays)
+    [string]$targetFolder = $Config.ExportSettings.TargetFolder
+      
+    Write-FABLog -Level Info -Message "Cleaning up archives older than $($cutoffDate.ToString('yyyy-MM-dd'))"
+      
+    [array]$oldFolders = Get-ChildItem -Path $targetFolder -Directory -Recurse | 
+    Where-Object { $_.CreationTime -lt $cutoffDate -and $_.FullName -ne $targetFolder }
+      
+    [long]$totalSize = 0
+    [int]$folderCount = 0
     
-  [datetime]$cutoffDate = (Get-Date).AddDays(-$Config.ExportSettings.RetentionDays)
-  [string]$targetFolder = $Config.ExportSettings.TargetFolder
-    
-  Write-Host "Cleaning up archives older than $($cutoffDate.ToString('yyyy-MM-dd'))"
-    
-  [array]$oldFolders = Get-ChildItem -Path $targetFolder -Directory -Recurse | 
-  Where-Object { $_.CreationTime -lt $cutoffDate -and $_.FullName -ne $targetFolder }
-    
-  [long]$totalSize = 0
-  foreach ($folder in $oldFolders) {
-    [long]$folderSize = (Get-ChildItem -Path $folder.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum
-    $totalSize += $folderSize
-    Write-Host "Removing old archive: $($folder.FullName) ($(($folderSize / 1MB).ToString('F2')) MB)"
-    Remove-Item -Path $folder.FullName -Recurse -Force -ErrorAction SilentlyContinue
+    foreach ($folder in $oldFolders) {
+      try {
+        [long]$folderSize = (Get-ChildItem -Path $folder.FullName -Recurse -File | Measure-Object -Property Length -Sum).Sum
+        $totalSize += $folderSize
+        Write-FABLog -Level Info -Message "Removing old archive: $($folder.FullName) ($(($folderSize / 1MB).ToString('F2')) MB)"
+        Remove-Item -Path $folder.FullName -Recurse -Force -ErrorAction Stop
+        $folderCount++
+      }
+      catch {
+        Write-FABLog -Level Warning -Message "Failed to remove archive folder: $($folder.FullName) - $($_.Exception.Message)"
+      }
+    }
+      
+    Write-FABLog -Level Success -Message "Cleanup completed. Removed $folderCount folders, freed $(($totalSize / 1MB).ToString('F2')) MB of disk space."
+    Complete-FABOperation -Operation $cleanupOp -Success -Result @{
+      FoldersRemoved = $folderCount
+      SpaceFreedMB   = [math]::Round($totalSize / 1MB, 2)
+    }
   }
-    
-  Write-Host "Cleanup completed. Freed $(($totalSize / 1MB).ToString('F2')) MB of disk space."
+  catch {
+    Write-FABLog -Level Error -Message "Cleanup operation failed: $($_.Exception.Message)"
+    Complete-FABOperation -Operation $cleanupOp -ErrorMessage $_.Exception.Message
+    throw
+  }
 }
 
 function Send-FABArchiveNotification {
@@ -1102,11 +1656,13 @@ function Send-FABArchiveNotification {
     [Parameter(Mandatory = $true)]
     [string]$ArchiveFolder
   )
-    
-  [long]$archiveSize = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object -Property Length -Sum).Sum
-  [int]$itemCount = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object).Count
-    
-  [string]$message = @"
+  
+  try {
+    [long]$archiveSize = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object -Property Length -Sum).Sum
+    [int]$itemCount = (Get-ChildItem -Path $ArchiveFolder -Recurse -File | Measure-Object).Count
+    [PSCustomObject]$summary = Get-FABLogSummary
+      
+    [string]$message = @"
 Fabric Archive Bot v2.0 - Archive Completed
 
 Archive Location: $ArchiveFolder
@@ -1114,11 +1670,24 @@ Items Archived: $itemCount
 Total Size: $(($archiveSize / 1MB).ToString('F2')) MB
 Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 
+Session Statistics:
+- Operations: $($summary.TotalOperations)
+- Successes: $($summary.SuccessCount)
+- Failures: $($summary.FailureCount)
+- Warnings: $($summary.WarningCount)
+- Errors: $($summary.ErrorCount)
+- Duration: $($summary.SessionDuration.ToString('hh\:mm\:ss'))
+
 Powered by FabricPS-PBIP (Credit: Rui Romano)
 "@
-    
-  # Implementation for Teams webhook, email, etc. would go here
-  Write-Host $message
+      
+    # Implementation for Teams webhook, email, etc. would go here
+    Write-FABLog -Level Info -Message "Archive notification generated"
+    Write-Host $message
+  }
+  catch {
+    Write-FABLog -Level Warning -Message "Failed to send notification: $($_.Exception.Message)"
+  }
 }
 
 #endregion
@@ -1132,6 +1701,7 @@ Export-ModuleMember -Function @(
   'Send-FABArchiveNotification',
   'Confirm-FABConfigurationCompatibility',
   'Invoke-FABWorkspaceFilter',
+  'Invoke-FABItemFilter',
   'Get-FABOptimalThrottleLimit',
   'Invoke-FABRateLimitedOperation',
   'Export-FABItemDefinitionDirect',
@@ -1142,5 +1712,11 @@ Export-ModuleMember -Function @(
   'Find-FABDefinitionEndpoints',
   'Get-FABFallbackItemTypes',
   'Test-FABFabricPSPBIPAvailability',
-  'Initialize-FABFabricConnection'
+  'Initialize-FABFabricConnection',
+  'Initialize-FABLogging',
+  'Write-FABLog',
+  'Start-FABOperation',
+  'Complete-FABOperation',
+  'Get-FABLogSummary',
+  'Export-FABLogSummary'
 )
