@@ -1,7 +1,7 @@
 {
   "servers": {
     "Microsoft Fabric MCP": {
-      "command": "..\\..\\GitHub\\microsoft-mcp-servers\\servers\\Fabric.Mcp.Server\\src\\bin\\Release\\fabmcp.exe",
+      "command": "~\\GitHub\\microsoft-mcp-servers\\servers\\Fabric.Mcp.Server\\src\\bin\\Release\\fabmcp.exe",
       "args": [
         "server",
         "start",
