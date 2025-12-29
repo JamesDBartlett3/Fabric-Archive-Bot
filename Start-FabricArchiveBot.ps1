@@ -119,53 +119,7 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 }
 
 # Validate configuration source and load configuration
-if ($ConfigFromEnv) {
-  # Load configuration from environment variable
-  [string]$envConfig = [System.Environment]::GetEnvironmentVariable("FabricArchiveBot_ConfigObject", "User")
-  
-  if (-not $envConfig) {
-    Write-Error "FabricArchiveBot_ConfigObject environment variable not found or is empty."
-    Write-Host "Please run the Set-FabricArchiveBotUserEnvironmentVariable.ps1 script first to set up the environment variable."
-    exit 1
-  }
-  
-  try {
-    [PSCustomObject]$config = $envConfig | ConvertFrom-Json
-    Write-Host "Configuration loaded from environment variable" -ForegroundColor Green
-  }
-  catch {
-    Write-Error "Failed to parse configuration from environment variable: $($_.Exception.Message)"
-    Write-Host "The environment variable may contain invalid JSON. Please run Set-FabricArchiveBotUserEnvironmentVariable.ps1 again."
-    exit 1
-  }
-}
-else {
-  # Load configuration from file
-  if (-not (Test-Path -Path $ConfigPath)) {
-    Write-Error "Configuration file not found: $ConfigPath"
-    Write-Host "Please ensure your configuration file exists or run with -ConfigPath parameter, or use -ConfigFromEnv to load from environment variable."
-    exit 1
-  }
-  
-  try {
-    [PSCustomObject]$config = Get-Content -Path $ConfigPath | ConvertFrom-Json
-    Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
-  }
-  catch {
-    Write-Error "Failed to load configuration: $($_.Exception.Message)"
-    exit 1
-  }
-}
-
-# Override configuration with parameters if provided
-if ($WorkspaceFilter) { $config.ExportSettings.WorkspaceFilter = $WorkspaceFilter }
-if ($TargetFolder) { $config.ExportSettings.TargetFolder = $TargetFolder }
-
-#endregion
-
-#region Module Mgmt
-
-# Import core module
+# Import core module first to access Get-FABConfiguration
 [string]$coreModulePath = Join-Path -Path $PSScriptRoot -ChildPath "modules\FabricArchiveBotCore.psm1"
 
 if (Test-Path -Path $coreModulePath) {
@@ -173,16 +127,6 @@ if (Test-Path -Path $coreModulePath) {
   try {
     Import-Module -Name $coreModulePath -Force
     Write-Host "Core module loaded successfully" -ForegroundColor Green
-    
-    # Ensure configuration compatibility now that core module is loaded
-    try {
-      [PSCustomObject]$config = Confirm-FABConfigurationCompatibility -Config $config
-      Write-Host "Configuration compatibility validated" -ForegroundColor Green
-    }
-    catch {
-      Write-Error "Configuration compatibility check failed: $($_.Exception.Message)"
-      exit 1
-    }
   }
   catch {
     Write-Error "Failed to import core module: $($_.Exception.Message)"
@@ -193,6 +137,34 @@ else {
   Write-Error "Core module not found: $coreModulePath"
   exit 1
 }
+
+# Load configuration using module function
+try {
+  [PSCustomObject]$config = Get-FABConfiguration -ConfigPath $ConfigPath -ConfigFromEnv:$ConfigFromEnv
+  Write-Host "Configuration loaded successfully" -ForegroundColor Green
+}
+catch {
+  Write-Error "Failed to load configuration: $($_.Exception.Message)"
+  exit 1
+}
+
+# Override configuration with parameters if provided
+if ($WorkspaceFilter) { $config.ExportSettings.WorkspaceFilter = $WorkspaceFilter }
+if ($TargetFolder) { $config.ExportSettings.TargetFolder = $TargetFolder }
+
+# Ensure configuration compatibility
+try {
+  [PSCustomObject]$config = Confirm-FABConfigurationCompatibility -Config $config
+  Write-Host "Configuration compatibility validated" -ForegroundColor Green
+}
+catch {
+  Write-Error "Configuration compatibility check failed: $($_.Exception.Message)"
+  exit 1
+}
+
+#endregion
+
+#region Module Mgmt
 
 # Test FabricPS-PBIP availability and download if needed
 try {
@@ -314,14 +286,8 @@ try {
   }
   else {
     # Execute the actual archive process
-    if ($ConfigFromEnv) {
-      # When using environment variable, pass the config object directly
-      Start-FABFabricArchiveProcess -Config $config -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
-    }
-    else {
-      # When using config file, pass the file path
-      Start-FABFabricArchiveProcess -ConfigPath $ConfigPath -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
-    }
+    # Always pass the loaded and potentially modified config object
+    Start-FABFabricArchiveProcess -Config $config -SerialProcessing:$SerialProcessing -ThrottleLimit $ThrottleLimit
   }
     
   Write-Host "`n$ScriptName completed successfully!" -ForegroundColor Green

@@ -1523,8 +1523,8 @@ function Start-FABFabricArchiveProcess {
     Write-Host "Using provided configuration object" -ForegroundColor Green
   }
   else {
-    # Load configuration from file
-    [PSCustomObject]$Config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+    # Load configuration from file using helper function
+    [PSCustomObject]$Config = Get-FABConfiguration -ConfigPath $ConfigPath
     Write-Host "Configuration loaded from: $ConfigPath" -ForegroundColor Green
   }
   
@@ -1690,10 +1690,82 @@ Powered by FabricPS-PBIP (Credit: Rui Romano)
   }
 }
 
+function Get-FABConfiguration {
+  <#
+  .SYNOPSIS
+  Loads the Fabric Archive Bot configuration.
+
+  .DESCRIPTION
+  Loads configuration from a JSON file or an environment variable.
+  
+  .PARAMETER ConfigPath
+  Path to the configuration file. Defaults to FabricArchiveBot_Config.json in the parent directory of the module.
+  
+  .PARAMETER ConfigFromEnv
+  If set, loads configuration from the FabricArchiveBot_ConfigObject environment variable.
+  #>
+  [CmdletBinding()]
+  param(
+    [Parameter()]
+    [string]$ConfigPath,
+    
+    [Parameter()]
+    [switch]$ConfigFromEnv
+  )
+  
+  if ($ConfigFromEnv) {
+    # Load configuration from environment variable
+    [string]$envConfig = [System.Environment]::GetEnvironmentVariable("FabricArchiveBot_ConfigObject", "User")
+    
+    if (-not $envConfig) {
+      throw "FabricArchiveBot_ConfigObject environment variable not found or is empty. Please run Set-FabricArchiveBotUserEnvironmentVariable.ps1 first."
+    }
+    
+    try {
+      [PSCustomObject]$config = $envConfig | ConvertFrom-Json
+      Write-Verbose "Configuration loaded from environment variable"
+      return $config
+    }
+    catch {
+      throw "Failed to parse configuration from environment variable: $($_.Exception.Message)"
+    }
+  }
+  else {
+    # Default ConfigPath if not provided
+    if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+        if (Test-Path ".\FabricArchiveBot_Config.json") {
+            $ConfigPath = ".\FabricArchiveBot_Config.json"
+        } elseif (Test-Path (Join-Path $PSScriptRoot "..\FabricArchiveBot_Config.json")) {
+            $ConfigPath = Join-Path $PSScriptRoot "..\FabricArchiveBot_Config.json"
+        } else {
+             throw "ConfigPath not provided and FabricArchiveBot_Config.json not found in current or parent directory."
+        }
+    }
+    
+    # Resolve absolute path to avoid ambiguity
+    $ConfigPath = Resolve-Path $ConfigPath
+
+    # Load configuration from file
+    if (-not (Test-Path -Path $ConfigPath)) {
+      throw "Configuration file not found: $ConfigPath"
+    }
+    
+    try {
+      [PSCustomObject]$config = Get-Content -Path $ConfigPath | ConvertFrom-Json
+      Write-Verbose "Configuration loaded from: $ConfigPath"
+      return $config
+    }
+    catch {
+      throw "Failed to load configuration: $($_.Exception.Message)"
+    }
+  }
+}
+
 #endregion
 
 # Export public functions
 Export-ModuleMember -Function @(
+  'Get-FABConfiguration',
   'Export-FABFabricItemsAdvanced',
   'Export-FABWorkspaceMetadata',
   'Start-FABFabricArchiveProcess',
