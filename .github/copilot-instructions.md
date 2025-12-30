@@ -6,11 +6,20 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 
 ## Core Architecture Principles
 
+### Modularity, Extensibility, and Maintainability
+
+- **Modular Design**: Core functionality is encapsulated in the `FabricArchiveBotCore` module, with helper modules for specific tasks.
+- **DRY Principle**: Avoid code duplication by creating reusable functions and modules.
+- **Separation of Concerns**: Clear separation between core logic, configuration management, user interface, and utility functions.
+- **Extensibility**: Designed to easily add support for new item types, export formats, and storage backends.
+- **Maintainability**: Code is structured for readability, with comprehensive inline comments and documentation.
+
 ### Module Dependencies
 
 - **Primary Module**: Use FabricPS-PBIP module for all Fabric operations
 - **Legacy Avoidance**: Do not use legacy Power BI modules or APIs
 - **Azure Integration**: Handle Azure module conflicts proactively with aggressive cleanup and fresh loading
+- **Lazy Loading**: Install and load ancillary modules only if/when required for the current operation; this will help optimize performance and avoid installation bloat
 
 ### Configuration Management
 
@@ -24,6 +33,7 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 - **Preserve Formatting**: Maintain proper spacing and formatting in filter expressions (e.g., OData WorkspaceFilter strings)
 - **Avoid Aggressive Processing**: Do not strip whitespace from structured data like filter expressions
 - **JSON Compression**: Use PowerShell's `ConvertTo-Json -Compress` for environment variable storage rather than manual string manipulation
+- **Data Loss Prevention**: Implement checks to prevent data loss during export and archiving operations
 
 ### Supported Item Types
 
@@ -36,18 +46,26 @@ The Fabric Archive Bot is a PowerShell-based solution for exporting and archivin
 ### Error Handling and Reliability
 
 - **Azure Module Conflicts**: Implement proactive detection and resolution of Az.Accounts assembly loading conflicts
-- **Fresh Session Recovery**: When module conflicts occur, guide users to start fresh PowerShell sessions
+- **Fresh Session Recovery**: When module conflicts occur, guide users to start fresh PowerShell session
 - **Configuration Validation**: Validate configuration compatibility and provide clear error messages for misconfigurations
 - **Robust API Interaction**: Implement retry logic and exponential backoff for API calls to handle transient failures
 - **Logging and Monitoring**: Provide detailed logging for operations, including successes, failures, and retries
 
 ### Performance Considerations
-- **Parallel Processing**: Use parallel processing for exporting items, with configurable concurrency limits
+
+- **Parallel Processing**: Use PowerShell's native parallel processing feature for operations which do not depend on shared state (exporting, saving, compressing, etc.), with configurable concurrency limits
+- **Batch Processing**: Process workspaces and items in batches to optimize API usage and reduce overhead
+- **Asynchronous Operations**: Where applicable, use asynchronous programming patterns to improve responsiveness
+- **Caching Mechanisms**: Implement caching for frequently accessed data to minimize redundant API calls
+- **Pipeline Optimization**: Streamline data processing pipelines to reduce latency and improve throughput -- use pipeline streaming where possible
 - **Throttling Awareness**: Monitor and respect API rate limits to avoid throttling
 - **Efficient Resource Usage**: Optimize memory and CPU usage, especially when handling large workspaces or multiple concurrent exports
 - **Configurable Delays**: Allow users to configure delays between API calls to manage rate limiting
 
+## User Interaction
+
 ### User Interface
+
 - **Command-Line Interface**: Provide a user-friendly CLI with clear commands and options
 - **Interactive Prompts**: Use interactive prompts for configuration and operation selection when not supplied via environment variables, files, or command-line arguments
 - **Interactive Selection**: Allow users to interactively select workspaces and item types when not pre-configured (use `Out-ConsoleGridView` from `Microsoft.PowerShell.ConsoleGuiTools` module)
