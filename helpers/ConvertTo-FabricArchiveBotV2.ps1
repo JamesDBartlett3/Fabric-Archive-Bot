@@ -121,7 +121,7 @@ function Convert-FABV1ConfigToV2 {
       UseCompression  = $false
       IncludeMetadata = $true
     }
-    FabricToolsSettings  = @{
+    FabricPSPBIPSettings  = @{
       UseFabricTools          = $true
       EnableAdvancedFeatures  = $true
       BatchSize               = 50

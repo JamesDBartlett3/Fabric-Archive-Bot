@@ -160,11 +160,11 @@ This file contains the version history and changes for Fabric Archive Bot.
 }
 ```
 
-#### **FabricTools Settings**
+#### **FabricPS-PBIP Settings**
 
 ```json
 {
-  "FabricToolsSettings": {
+  "FabricPSPBIPSettings": {
     "UseFabricTools": true,
     "ParallelProcessing": true,
     "ThrottleLimit": 0,

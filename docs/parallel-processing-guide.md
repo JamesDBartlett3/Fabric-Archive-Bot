@@ -51,7 +51,7 @@ Add to your `FabricArchiveBot_Config.json`:
 
 ```json
 {
-  "FabricToolsSettings": {
+  "FabricPSPBIPSettings": {
     "ParallelProcessing": true,
     "ThrottleLimit": 6
   }
@@ -208,7 +208,7 @@ The migration helper automatically enables parallel processing in v2.0 configs:
 Your migrated configuration will include:
 ```json
 {
-  "FabricToolsSettings": {
+  "FabricPSPBIPSettings": {
     "ParallelProcessing": true,
     "ThrottleLimit": 0
   }

@@ -536,7 +536,7 @@ To test filters without actually exporting:
 1. Add verbose output to config:
    ```json
    {
-     "FabricToolsSettings": {
+     "FabricPSPBIPSettings": {
        "ParallelProcessing": false
      }
    }

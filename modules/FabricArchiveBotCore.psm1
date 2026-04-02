@@ -287,10 +287,11 @@ function Complete-FABOperation {
   }
   
   if ($Success) {
+    # Note: Write-FABLog -Level Success already increments SuccessCount
     Write-FABLog -Level Success -Message "Completed operation: $($Operation.OperationName) in $($Operation.Duration.TotalSeconds.ToString('F2'))s" -Operation $Operation.OperationName -Details $details
-    $Script:FABLogContext.SuccessCount++
   }
   else {
+    # Note: Write-FABLog -Level Error already increments ErrorCount; track FailureCount separately
     Write-FABLog -Level Error -Message "Failed operation: $($Operation.OperationName) - $ErrorMessage" -Operation $Operation.OperationName -Details $details
     $Script:FABLogContext.FailureCount++
   }
@@ -1776,7 +1777,6 @@ Export-ModuleMember -Function @(
   'Invoke-FABItemFilter',
   'Get-FABOptimalThrottleLimit',
   'Invoke-FABRateLimitedOperation',
-  'Export-FABItemDefinitionDirect',
   'Get-FABFabricWorkspaces',
   'Get-FABFabricWorkspaceById',
   'Get-FABFabricItemsByWorkspace',

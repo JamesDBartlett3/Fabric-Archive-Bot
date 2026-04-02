@@ -43,8 +43,7 @@
     "UseCompression": true,
     "IncludeMetadata": true
   },
-  "FabricToolsSettings": {
-    "UseFabricTools": true,
+  "FabricPSPBIPSettings": {
     "EnableAdvancedFeatures": true,
     "BatchSize": 50,
     "ParallelProcessing": true,
@@ -56,6 +55,11 @@
       "RetryDelaySeconds": 30,
       "BackoffMultiplier": 2
     }
+  },
+  "LoggingSettings": {
+    "LogLevel": "Info",
+    "EnableFileLogging": false,
+    "LogDirectory": ".\\Logs"
   },
   "NotificationSettings": {
     "EnableNotifications": false,

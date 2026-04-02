@@ -24,7 +24,7 @@ Fabric Archive Bot v2.0 includes comprehensive API rate limiting handling to ens
 
 ```json
 {
-  "FabricToolsSettings": {
+  "FabricPSPBIPSettings": {
     "ParallelProcessing": true,
     "ThrottleLimit": 4,
     "RateLimitSettings": {
@@ -108,7 +108,7 @@ Microsoft Fabric API issues
 ### **Conservative Settings (Slow but Reliable)**
 ```json
 {
-  "FabricToolsSettings": {
+  "FabricPSPBIPSettings": {
     "ParallelProcessing": true,
     "ThrottleLimit": 2,
     "RateLimitSettings": {
@@ -123,7 +123,7 @@ Microsoft Fabric API issues
 ### **Aggressive Settings (Fast but Risk-Prone)**
 ```json
 {
-  "FabricToolsSettings": {
+  "FabricPSPBIPSettings": {
     "ParallelProcessing": true,
     "ThrottleLimit": 8,
     "RateLimitSettings": {
@@ -138,7 +138,7 @@ Microsoft Fabric API issues
 ### **Balanced Settings (Recommended)**
 ```json
 {
-  "FabricToolsSettings": {
+  "FabricPSPBIPSettings": {
     "ParallelProcessing": true,
     "ThrottleLimit": 4,
     "RateLimitSettings": {
