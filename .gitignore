@@ -2,3 +2,4 @@ Config.json
 Workspaces/**
 FabricPS-PBIP.psm1
 .nuget
+FabricArchiveBot_Summary_*.json

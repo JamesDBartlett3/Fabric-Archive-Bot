@@ -477,7 +477,7 @@ function Get-FABOptimalThrottleLimit {
     [int]$throttleLimit = $OverrideThrottleLimit
     Write-Host "Using runtime override throttle limit: $throttleLimit"
   }
-  elseif ($Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ThrottleLimit'] -and $Config.FabricPSPBIPSettings.ThrottleLimit -gt 0) {
+  elseif ($Config -and $Config.PSObject.Properties['FabricPSPBIPSettings'] -and $Config.FabricPSPBIPSettings.PSObject.Properties['ThrottleLimit'] -and $Config.FabricPSPBIPSettings.ThrottleLimit -gt 0) {
     [int]$throttleLimit = $Config.FabricPSPBIPSettings.ThrottleLimit
     Write-Host "Using config throttle limit: $throttleLimit"
   }
@@ -1436,11 +1436,12 @@ function Export-FABWorkspaceMetadata {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory = $true)]
+    [AllowEmptyCollection()]
     [array]$AllWorkspaceData,
-        
+
     [Parameter(Mandatory = $true)]
     [string]$TargetFolder,
-        
+
     [Parameter(Mandatory = $true)]
     [PSCustomObject]$Config
   )
