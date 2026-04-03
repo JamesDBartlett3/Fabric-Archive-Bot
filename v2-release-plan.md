@@ -7,17 +7,21 @@
 
 ## Phase 1: Stabilize & Merge
 
-- [ ] **1.1 — Verify core module end-to-end**
-  Review `Start-FabricArchiveBot.ps1` and `modules/FabricArchiveBotCore.psm1` for broken references, dead code paths, or obvious gaps.
+- [x] **1.1 — Verify core module end-to-end**
+  Fixed: ghost export, config key mismatch (`FabricToolsSettings` → `FabricPSPBIPSettings`), missing `LoggingSettings`, double-counting bug, null guard in `Get-FABOptimalThrottleLimit`, `[AllowEmptyCollection()]` on `Export-FABWorkspaceMetadata`.
 
-- [ ] **1.2 — Get Pester tests running**
-  Re-enable `.github/workflows/test.yml.disabled`, fix any failing tests, ensure at least the happy path is covered for core functions.
+- [x] **1.2 — Get Pester tests running**
+  77 unit tests across 7 test files, all passing. CI workflow re-enabled.
 
-- [ ] **1.3 — Close completed GitHub issues**
-  - Close #10 (Error Handling & Logging — done)
-  - Update #15 (Filtering) to reflect Scanner API work is deferred to a future release
+- [x] **1.3 — Close completed GitHub issues**
+  Closed #10, updated #15 with Scanner API deferral note.
 
-- [ ] **1.4 — Open PR from `jdb/FAB2dev#15` → `main`**
+- [ ] **1.4 — Run integration tests against a live Fabric tenant**
+  Run `tests/Invoke-IntegrationTests.ps1` from a machine with tenant access.
+  38 tests across 8 phases: config, item type detection, auth, workspace retrieval, workspace filtering, item filtering, export (serial + parallel), logging.
+  Fix any failures found.
+
+- [ ] **1.5 — Open PR from `jdb/FAB2dev#15` → `main`**
   Create the v2 pull request with a summary of all changes since v1.
 
 ---
