@@ -1,5 +1,6 @@
 # Fabric-Archive-Bot
 A fully automated Microsoft Power BI/Fabric tenant backup solution written in PowerShell
+<img width="1024" height="1024" alt="fabric-archive-bot" src="https://github.com/user-attachments/assets/2672219b-cc49-43f7-a494-6ecd33c03a27" />
 
 ## Features
 - **Free & Open Source**: No licensing fees, no vendor lock-in, and full access to the source code. You can run the script on your own hardware or in your own cloud environment, and you can modify the code to suit your needs. If you find a bug or want to add a feature, you can create [an issue](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/issues/new/choose) or [a pull request](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/fork). Please review the [LICENSE.txt](https://github.com/JamesDBartlett3/Fabric-Archive-Bot/blob/main/LICENSE.txt) file for more information.
